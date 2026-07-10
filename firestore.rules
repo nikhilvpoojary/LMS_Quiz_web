@@ -1,0 +1,743 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function userExists(uid) {
+      return exists(userPath(uid));
+    }
+
+    function userData(uid) {
+      return get(userPath(uid)).data;
+    }
+
+    function myProfile() {
+      return userData(request.auth.uid);
+    }
+
+    function isActiveStatus(status) {
+      return !(status in ['pending', 'rejected', 'disabled']);
+    }
+
+    function isActiveUser(uid) {
+      return signedIn() && userExists(uid) && isActiveStatus(userData(uid).status);
+    }
+
+    function hasRole(role) {
+      return isActiveUser(request.auth.uid) && myProfile().role == role;
+    }
+
+    function isSuperAdmin() {
+      return hasRole('websiteAdmin');
+    }
+
+    function isSchoolAdmin() {
+      return hasRole('school');
+    }
+
+    function isTeacher() {
+      return hasRole('teacher');
+    }
+
+    function isStudent() {
+      return hasRole('student');
+    }
+
+    function mySchoolId() {
+      return myProfile().schoolId;
+    }
+
+    function isSameSchool(schoolId) {
+      return isActiveUser(request.auth.uid) && mySchoolId() == schoolId;
+    }
+
+    function isSchoolAdminFor(schoolId) {
+      return isSchoolAdmin() && mySchoolId() == schoolId;
+    }
+
+    function isTeacherFor(schoolId) {
+      return isTeacher() && mySchoolId() == schoolId;
+    }
+
+    function isStudentFor(schoolId) {
+      return isStudent() && mySchoolId() == schoolId;
+    }
+
+    function approvedSchoolExists(schoolId) {
+      return exists(/databases/$(database)/documents/schools/$(schoolId)) &&
+        get(/databases/$(database)/documents/schools/$(schoolId)).data.status == 'approved';
+    }
+
+    function approvedSchoolExistsAfter(schoolId) {
+      return getAfter(/databases/$(database)/documents/schools/$(schoolId)).data.status == 'approved';
+    }
+
+    function validEmail(email) {
+      return email is string && email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+    }
+
+    function timestampOrServerTime(value) {
+      return value is timestamp;
+    }
+
+    function noRoleOrSchoolChange() {
+      return request.resource.data.role == resource.data.role &&
+        request.resource.data.schoolId == resource.data.schoolId;
+    }
+
+    function validTenantCreate() {
+      return request.resource.data.schoolId is string &&
+        (
+          approvedSchoolExists(request.resource.data.schoolId) ||
+          approvedSchoolExistsAfter(request.resource.data.schoolId)
+        );
+    }
+
+    function validTenantUpdate() {
+      return request.resource.data.schoolId == resource.data.schoolId;
+    }
+
+    function canReadTenant(data) {
+      return isSuperAdmin() || isSameSchool(data.schoolId);
+    }
+
+    function canSchoolManageTenant(data) {
+      return isSuperAdmin() || isSchoolAdminFor(data.schoolId);
+    }
+
+    function canStaffManageTenant(data) {
+      return isSuperAdmin() || isSchoolAdminFor(data.schoolId) || isTeacherFor(data.schoolId);
+    }
+
+    function canReadClass(data) {
+      return isSuperAdmin() ||
+        isSchoolAdminFor(data.schoolId) ||
+        isStudentFor(data.schoolId) ||
+        (isTeacherFor(data.schoolId) && data.teacherId == request.auth.uid);
+    }
+
+    function canReadClassMembership(data) {
+      return isSuperAdmin() ||
+        isSchoolAdminFor(data.schoolId) ||
+        (isStudentFor(data.schoolId) && data.studentId == request.auth.uid) ||
+        (isTeacherFor(data.schoolId) && data.teacherId == request.auth.uid);
+    }
+
+    function canBootstrapCollection(collectionId) {
+      return collectionId in [
+        'schoolCodes',
+        'teacherRequests',
+        'studentRequests',
+        'teachers',
+        'students',
+        'classes',
+        'courses',
+        'lessons',
+        'quizzes',
+        'quizAttempts',
+        'attendance',
+        'announcements',
+        'notifications',
+        'settings',
+        'analytics'
+      ];
+    }
+
+    function isBootstrapCreate(collectionId, documentId) {
+      return signedIn() &&
+        canBootstrapCollection(collectionId) &&
+        documentId == '__bootstrap__' + request.auth.uid &&
+        request.resource.data.keys().hasOnly([
+          'collection',
+          'createdAt',
+          'kind',
+          'ownerId',
+          'status',
+          'updatedAt'
+        ]) &&
+        request.resource.data.collection == collectionId &&
+        request.resource.data.kind == 'collectionBootstrap' &&
+        request.resource.data.ownerId == request.auth.uid &&
+        request.resource.data.status == 'ready' &&
+        timestampOrServerTime(request.resource.data.createdAt) &&
+        timestampOrServerTime(request.resource.data.updatedAt);
+    }
+
+    function isBootstrapCleanup(collectionId, documentId) {
+      return signedIn() &&
+        canBootstrapCollection(collectionId) &&
+        documentId == '__bootstrap__' + request.auth.uid &&
+        (
+          !exists(/databases/$(database)/documents/$(collectionId)/$(documentId)) ||
+          (
+            resource.data.kind == 'collectionBootstrap' &&
+            resource.data.ownerId == request.auth.uid
+          )
+        );
+    }
+
+    // User profiles power authorization. Users can create their own limited
+    // profile during registration, but cannot promote themselves or move schools.
+    match /users/{userId} {
+      allow get: if signedIn() && (request.auth.uid == userId || isSuperAdmin());
+      allow list: if isSuperAdmin();
+
+      allow create: if signedIn() &&
+        request.auth.uid == userId &&
+        request.resource.data.keys().hasOnly([
+          'email',
+          'fullName',
+          'role',
+          'schoolCode',
+          'schoolId',
+          'status'
+        ]) &&
+        validEmail(request.resource.data.email) &&
+        (
+          (
+            request.resource.data.role == 'school' &&
+            request.resource.data.status == 'pending' &&
+            request.resource.data.schoolId == userId
+          ) ||
+          (
+            request.resource.data.role == 'teacher' &&
+            request.resource.data.status == 'pending' &&
+            approvedSchoolExists(request.resource.data.schoolId)
+          ) ||
+          (
+            request.resource.data.role == 'student' &&
+            request.resource.data.status == 'pending' &&
+            approvedSchoolExists(request.resource.data.schoolId)
+          )
+        );
+
+      allow update: if (
+          isSuperAdmin() &&
+          noRoleOrSchoolChange() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'email',
+            'fullName',
+            'schoolCode',
+            'status',
+            'updatedAt'
+          ])
+        ) ||
+        (
+          (
+            (isSchoolAdmin() && resource.data.role in ['teacher', 'student']) ||
+            (isTeacher() && resource.data.role == 'student')
+          ) &&
+          resource.data.schoolId == mySchoolId() &&
+          noRoleOrSchoolChange() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) &&
+          resource.data.status == 'pending' &&
+          request.resource.data.status in ['active', 'rejected']
+        );
+
+      allow delete: if signedIn() &&
+        request.auth.uid == userId &&
+        (
+          !exists(userPath(userId)) ||
+          (
+            resource.data.role == 'school' &&
+            resource.data.status == 'pending' &&
+            resource.data.schoolId == userId
+          ) ||
+          (
+            resource.data.role == 'teacher' &&
+            resource.data.status == 'pending' &&
+            resource.data.schoolId is string
+          ) ||
+          (
+            resource.data.role == 'student' &&
+            resource.data.status == 'pending' &&
+            resource.data.schoolId is string
+          )
+        );
+    }
+
+    // School registrations are created pending by the registering school user.
+    // Only the super admin can approve/reject and assign the permanent code.
+    match /schools/{schoolId} {
+      allow get: if isSuperAdmin() ||
+        (signedIn() && request.auth.uid == schoolId) ||
+        (isSchoolAdmin() && mySchoolId() == schoolId);
+      allow list: if isSuperAdmin();
+
+      allow create: if signedIn() &&
+        request.auth.uid == schoolId &&
+        request.resource.data.keys().hasOnly([
+          'createdAt',
+          'email',
+          'principalName',
+          'registrationDate',
+          'schoolId',
+          'schoolName',
+          'status',
+          'updatedAt'
+        ]) &&
+        request.resource.data.schoolId == schoolId &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.schoolName is string &&
+        request.resource.data.principalName is string &&
+        validEmail(request.resource.data.email) &&
+        timestampOrServerTime(request.resource.data.registrationDate) &&
+        timestampOrServerTime(request.resource.data.createdAt) &&
+        timestampOrServerTime(request.resource.data.updatedAt);
+
+      allow update: if isSuperAdmin() &&
+        (
+          (
+            resource.data.status == 'pending' &&
+            request.resource.data.status == 'approved' &&
+            request.resource.data.schoolCode is string &&
+            request.resource.data.schoolId is string &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'createdAt',
+              'schoolCode',
+              'schoolId',
+              'status',
+              'updatedAt'
+            ])
+          ) ||
+          (
+            resource.data.status == 'pending' &&
+            request.resource.data.status == 'rejected' &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'rejectionReason',
+              'status',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if signedIn() &&
+        request.auth.uid == schoolId &&
+        (
+          !exists(/databases/$(database)/documents/schools/$(schoolId)) ||
+          (
+            resource.data.status == 'pending' &&
+            resource.data.schoolId == schoolId
+          )
+        );
+    }
+
+    // Immutable registration audit queue. The app writes this beside the school
+    // document during signup so a fresh project has an explicit approval record.
+    match /schoolRegistrations/{registrationId} {
+      allow get: if isSuperAdmin() || (signedIn() && request.auth.uid == registrationId);
+      allow list: if isSuperAdmin();
+
+      allow create: if signedIn() &&
+        request.auth.uid == registrationId &&
+        request.resource.data.keys().hasOnly([
+          'createdAt',
+          'email',
+          'principalName',
+          'registrationDate',
+          'schoolId',
+          'schoolName',
+          'status',
+          'updatedAt'
+        ]) &&
+        request.resource.data.schoolId == registrationId &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.schoolName is string &&
+        request.resource.data.principalName is string &&
+        validEmail(request.resource.data.email) &&
+        timestampOrServerTime(request.resource.data.registrationDate) &&
+        timestampOrServerTime(request.resource.data.createdAt) &&
+        timestampOrServerTime(request.resource.data.updatedAt);
+
+      allow update: if isSuperAdmin() &&
+        (
+          (
+            resource.data.status == 'pending' &&
+            request.resource.data.status == 'approved' &&
+            request.resource.data.schoolCode is string &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'schoolCode',
+              'status',
+              'updatedAt'
+            ])
+          ) ||
+          (
+            resource.data.status == 'pending' &&
+            request.resource.data.status == 'rejected' &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'rejectionReason',
+              'status',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if signedIn() &&
+        request.auth.uid == registrationId &&
+        (
+          !exists(/databases/$(database)/documents/schoolRegistrations/$(registrationId)) ||
+          (
+            resource.data.status == 'pending' &&
+            resource.data.schoolId == registrationId
+          )
+        );
+    }
+
+    // Minimal public join-code directory. This avoids exposing full school
+    // documents while still allowing registration by school code.
+    match /schoolCodes/{schoolCode} {
+      allow get: if true;
+      allow list: if false;
+
+      allow create: if isSuperAdmin() &&
+        request.resource.data.keys().hasOnly([
+          'schoolCode',
+          'schoolId',
+          'schoolName',
+          'status'
+        ]) &&
+        request.resource.data.schoolCode == schoolCode &&
+        request.resource.data.status == 'approved' &&
+        approvedSchoolExistsAfter(request.resource.data.schoolId);
+
+      allow update, delete: if false;
+    }
+
+    // Teacher requests are self-created by a teacher account and approved by
+    // the matching school admin only.
+    match /teacherRequests/{requestId} {
+      allow get: if isSuperAdmin() ||
+        (signedIn() && request.auth.uid == requestId) ||
+        canReadTenant(resource.data);
+      allow list: if isSuperAdmin() || canReadTenant(resource.data);
+
+      allow create: if signedIn() &&
+        request.auth.uid == requestId &&
+        request.resource.data.keys().hasOnly([
+          'email',
+          'fullName',
+          'requestedDate',
+          'schoolCode',
+          'schoolId',
+          'schoolName',
+          'status',
+          'subjects',
+          'teacherId'
+        ]) &&
+        request.resource.data.teacherId == requestId &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.subjects is list &&
+        validEmail(request.resource.data.email) &&
+        approvedSchoolExists(request.resource.data.schoolId);
+
+      allow update: if canSchoolManageTenant(resource.data) &&
+        request.resource.data.schoolId == resource.data.schoolId &&
+        request.resource.data.teacherId == resource.data.teacherId &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status in ['approved', 'rejected'] &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'joinedDate',
+          'status',
+          'updatedAt'
+        ]);
+
+      allow delete: if signedIn() &&
+        request.auth.uid == requestId &&
+        (
+          !exists(/databases/$(database)/documents/teacherRequests/$(requestId)) ||
+          (
+            resource.data.teacherId == requestId &&
+            resource.data.status == 'pending'
+          )
+        );
+    }
+
+    // Optional student request workflow for deployments that require school
+    // approval before student activation.
+    match /studentRequests/{requestId} {
+      allow get: if isSuperAdmin() ||
+        (signedIn() && request.auth.uid == requestId) ||
+        canReadTenant(resource.data);
+      allow list: if isSuperAdmin() || canReadTenant(resource.data);
+
+      allow create: if signedIn() &&
+        request.auth.uid == requestId &&
+        request.resource.data.studentId == requestId &&
+        request.resource.data.status == 'pending' &&
+        validEmail(request.resource.data.email) &&
+        validTenantCreate();
+
+      allow update: if canStaffManageTenant(resource.data) &&
+        validTenantUpdate() &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status in ['approved', 'rejected'] &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'joinedDate',
+          'status',
+          'updatedAt'
+        ]);
+
+      allow delete: if signedIn() &&
+        request.auth.uid == requestId &&
+        (
+          !exists(/databases/$(database)/documents/studentRequests/$(requestId)) ||
+          (
+            resource.data.studentId == requestId &&
+            resource.data.status == 'pending'
+          )
+        );
+    }
+
+    match /teachers/{teacherId} {
+      allow get: if isSuperAdmin() ||
+        (signedIn() && request.auth.uid == teacherId) ||
+        canReadTenant(resource.data);
+      allow list: if isSuperAdmin() || canReadTenant(resource.data);
+
+      allow create: if canSchoolManageTenant(request.resource.data) &&
+        request.resource.data.teacherId == teacherId &&
+        validTenantCreate() &&
+        getAfter(/databases/$(database)/documents/teacherRequests/$(teacherId)).data.status == 'approved' &&
+        getAfter(/databases/$(database)/documents/teacherRequests/$(teacherId)).data.schoolId == request.resource.data.schoolId;
+
+      allow update: if canSchoolManageTenant(resource.data) &&
+        validTenantUpdate() &&
+        request.resource.data.teacherId == resource.data.teacherId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'email',
+          'fullName',
+          'joinedDate',
+          'schoolName',
+          'status',
+          'subjects',
+          'teacherId',
+          'updatedAt'
+        ]);
+
+      allow delete: if isSuperAdmin() ||
+        isSchoolAdminFor(resource.data.schoolId) ||
+        (
+          signedIn() &&
+          request.auth.uid == teacherId &&
+          !exists(/databases/$(database)/documents/teachers/$(teacherId))
+        );
+    }
+
+    match /students/{studentId} {
+      allow get: if isSuperAdmin() ||
+        (signedIn() && request.auth.uid == studentId) ||
+        canReadTenant(resource.data);
+      allow list: if isSuperAdmin() || canReadTenant(resource.data);
+
+      allow create: if signedIn() &&
+        request.auth.uid == studentId &&
+        request.resource.data.studentId == studentId &&
+        request.resource.data.status == 'active' &&
+        validEmail(request.resource.data.email) &&
+        validTenantCreate() ||
+        (
+          canStaffManageTenant(request.resource.data) &&
+          request.resource.data.studentId == studentId &&
+          request.resource.data.status == 'active' &&
+          validEmail(request.resource.data.email) &&
+          validTenantCreate() &&
+          getAfter(/databases/$(database)/documents/studentRequests/$(studentId)).data.status == 'approved' &&
+          getAfter(/databases/$(database)/documents/studentRequests/$(studentId)).data.schoolId == request.resource.data.schoolId
+        );
+
+      allow update: if canSchoolManageTenant(resource.data) &&
+        validTenantUpdate() &&
+        request.resource.data.studentId == resource.data.studentId;
+
+      allow delete: if isSuperAdmin() ||
+        isSchoolAdminFor(resource.data.schoolId) ||
+        (
+          signedIn() &&
+          request.auth.uid == studentId &&
+          !exists(/databases/$(database)/documents/students/$(studentId))
+        );
+    }
+
+    // Core school-owned learning content. School admins own structure, teachers
+    // can manage instructional assets and daily classroom records.
+    match /classes/{classId} {
+      allow read: if canReadClass(resource.data);
+      allow create: if (
+        canSchoolManageTenant(request.resource.data) && validTenantCreate()
+      ) || (
+        isTeacherFor(request.resource.data.schoolId) &&
+        request.resource.data.keys().hasOnly([
+          'classId',
+          'className',
+          'createdAt',
+          'schoolId',
+          'schoolName',
+          'status',
+          'teacherId',
+          'teacherName'
+        ]) &&
+        request.resource.data.classId == classId &&
+        request.resource.data.className in ['Class 8', 'Class 9', 'Class 10'] &&
+        request.resource.data.status == 'active' &&
+        request.resource.data.teacherId == request.auth.uid &&
+        request.resource.data.teacherName is string &&
+        timestampOrServerTime(request.resource.data.createdAt) &&
+        validTenantCreate()
+      );
+      allow update: if canSchoolManageTenant(resource.data) && validTenantUpdate();
+      allow delete: if isSuperAdmin() || isSchoolAdminFor(resource.data.schoolId);
+    }
+
+    match /classMemberships/{membershipId} {
+      allow get: if canReadClassMembership(resource.data);
+      allow list: if canReadClassMembership(resource.data);
+
+      allow create: if isStudentFor(request.resource.data.schoolId) &&
+        request.resource.data.keys().hasOnly([
+          'classId',
+          'className',
+          'joinedAt',
+          'lastActivityAt',
+          'schoolId',
+          'studentId',
+          'teacherId'
+        ]) &&
+        request.resource.data.studentId == request.auth.uid &&
+        membershipId == request.resource.data.classId + '_' + request.auth.uid &&
+        exists(/databases/$(database)/documents/classes/$(request.resource.data.classId)) &&
+        get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.schoolId == request.resource.data.schoolId &&
+        get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.status == 'active' &&
+        get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.teacherId == request.resource.data.teacherId &&
+        request.resource.data.className ==
+          get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.className &&
+        timestampOrServerTime(request.resource.data.joinedAt);
+
+      allow update: if canStaffManageTenant(resource.data) &&
+        validTenantUpdate() &&
+        request.resource.data.studentId == resource.data.studentId &&
+        request.resource.data.classId == resource.data.classId &&
+        request.resource.data.teacherId == resource.data.teacherId;
+
+      allow delete: if isSuperAdmin() || isSchoolAdminFor(resource.data.schoolId);
+    }
+
+    match /courses/{courseId} {
+      allow read: if canReadTenant(resource.data);
+      allow create: if canSchoolManageTenant(request.resource.data) && validTenantCreate();
+      allow update: if canSchoolManageTenant(resource.data) && validTenantUpdate();
+      allow delete: if isSuperAdmin() || isSchoolAdminFor(resource.data.schoolId);
+    }
+
+    match /lessons/{lessonId} {
+      allow read: if canReadTenant(resource.data);
+      allow create: if canStaffManageTenant(request.resource.data) && validTenantCreate();
+      allow update: if canStaffManageTenant(resource.data) && validTenantUpdate();
+      allow delete: if isSuperAdmin() || isSchoolAdminFor(resource.data.schoolId) || isTeacherFor(resource.data.schoolId);
+    }
+
+    match /quizzes/{quizId} {
+      allow read: if canReadTenant(resource.data);
+      allow create: if canStaffManageTenant(request.resource.data) && validTenantCreate();
+      allow update: if canStaffManageTenant(resource.data) && validTenantUpdate();
+      allow delete: if isSuperAdmin() || isSchoolAdminFor(resource.data.schoolId) || isTeacherFor(resource.data.schoolId);
+    }
+
+    match /quizAttempts/{attemptId} {
+      allow get: if isSuperAdmin() ||
+        (signedIn() && request.auth.uid == resource.data.studentId) ||
+        canReadTenant(resource.data);
+      allow list: if isSuperAdmin() ||
+        canReadTenant(resource.data) ||
+        (isStudent() && resource.data.studentId == request.auth.uid);
+
+      allow create: if isStudentFor(request.resource.data.schoolId) &&
+        request.resource.data.studentId == request.auth.uid &&
+        validTenantCreate();
+
+      allow update: if (
+        (isStudentFor(resource.data.schoolId) &&
+          resource.data.studentId == request.auth.uid &&
+          validTenantUpdate()) ||
+        (canStaffManageTenant(resource.data) &&
+          validTenantUpdate())
+      );
+
+      allow delete: if isSuperAdmin() || isSchoolAdminFor(resource.data.schoolId);
+    }
+
+    match /attendance/{attendanceId} {
+      allow read: if canReadTenant(resource.data);
+      allow create: if canStaffManageTenant(request.resource.data) && validTenantCreate();
+      allow update: if canStaffManageTenant(resource.data) && validTenantUpdate();
+      allow delete: if isSuperAdmin() || isSchoolAdminFor(resource.data.schoolId);
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if canReadTenant(resource.data);
+      allow create: if canStaffManageTenant(request.resource.data) && validTenantCreate();
+      allow update: if canStaffManageTenant(resource.data) && validTenantUpdate();
+      allow delete: if isSuperAdmin() || isSchoolAdminFor(resource.data.schoolId);
+    }
+
+    match /notifications/{notificationId} {
+      allow get: if isSuperAdmin() ||
+        (signedIn() && resource.data.recipientId == request.auth.uid) ||
+        canSchoolManageTenant(resource.data);
+      allow list: if isSuperAdmin() ||
+        (signedIn() && resource.data.recipientId == request.auth.uid) ||
+        canSchoolManageTenant(resource.data);
+
+      allow create: if canStaffManageTenant(request.resource.data) &&
+        validTenantCreate() &&
+        request.resource.data.recipientId is string;
+
+      allow update: if (
+        signedIn() &&
+        resource.data.recipientId == request.auth.uid &&
+        validTenantUpdate() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt'])
+      ) || (
+        canSchoolManageTenant(resource.data) &&
+        validTenantUpdate()
+      );
+
+      allow delete: if isSuperAdmin() || isSchoolAdminFor(resource.data.schoolId);
+    }
+
+    match /settings/{settingId} {
+      allow read: if isSuperAdmin() ||
+        (resource.data.schoolId is string && canReadTenant(resource.data)) ||
+        (isSchoolAdmin() && settingId == mySchoolId());
+
+      allow create: if canSchoolManageTenant(request.resource.data) && validTenantCreate();
+      allow update: if canSchoolManageTenant(resource.data) && validTenantUpdate();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /analytics/{analyticsId} {
+      allow read: if isSuperAdmin() ||
+        (resource.data.schoolId is string && canReadTenant(resource.data));
+      allow create, update, delete: if isSuperAdmin();
+    }
+
+    // One metadata document may be written into each required collection during
+    // school registration to create the collection in an empty Firebase project.
+    match /{collectionId}/{documentId} {
+      allow create: if isBootstrapCreate(collectionId, documentId);
+      allow delete: if isBootstrapCleanup(collectionId, documentId);
+      allow read, update: if false;
+    }
+
+    // Deny everything not explicitly modeled above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
