@@ -1,10 +1,11 @@
 import type { LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 
 interface StatCardProps {
   icon: LucideIcon
   label: string
   loading: boolean
-  value: number
+  value: ReactNode
 }
 
 export function StatCard({ icon: Icon, label, loading, value }: StatCardProps) {
@@ -15,7 +16,7 @@ export function StatCard({ icon: Icon, label, loading, value }: StatCardProps) {
       </div>
       <div>
         <p>{label}</p>
-        <strong>{loading ? '...' : value.toLocaleString()}</strong>
+        <strong>{loading ? '...' : typeof value === 'number' ? value.toLocaleString() : value}</strong>
       </div>
     </article>
   )

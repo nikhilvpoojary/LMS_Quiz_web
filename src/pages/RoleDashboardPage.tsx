@@ -1,23 +1,27 @@
 import { signOut } from 'firebase/auth'
 import {
   doc,
-  getDoc,
   onSnapshot,
   where,
   type QueryConstraint,
 } from 'firebase/firestore'
 import {
+  Award,
   BarChart3,
   BookOpen,
   Check,
+  Clock,
   Clipboard,
   Copy,
+  FileText,
   GraduationCap,
   LogOut,
   Pencil,
   Plus,
+  PlayCircle,
   Search,
   School,
+  Target,
   ToggleLeft,
   Trash2,
   UserCheck,
@@ -25,7 +29,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import toast from 'react-hot-toast'
 import { StatCard } from '../components/admin/StatCard'
 import { EmptyState, ErrorState, SkeletonGrid } from '../components/common/StateViews'
@@ -39,6 +43,12 @@ import {
   type ClassMembership,
 } from '../hooks/useClassroomData'
 import { useAuth } from '../hooks/useAuth'
+import {
+  useStudentClassMemberships,
+  useStudentQuizAttempts,
+  useTeacherQuizAttempts,
+  type QuizAttemptRecord,
+} from '../hooks/useLearningData'
 import { useRealtimeCount } from '../hooks/useRealtimeCount'
 import { useTeacherRequests } from '../hooks/useTeacherRequests'
 import {
@@ -47,6 +57,17 @@ import {
   joinClass,
   rejectStudentRequest,
 } from '../services/classroom'
+import {
+  getCourseById,
+  getCoursesForClass,
+  getQuestionsForTest,
+  getTestById,
+  prepareQuestions,
+  submitQuizAttempt,
+  type CourseSubject,
+  type PreparedQuestion,
+  type QuizQuestion,
+} from '../services/learning'
 import {
   approveTeacherRequest,
   rejectTeacherRequest,
@@ -77,6 +98,70 @@ interface JoinedStudentRow {
 }
 
 const classOptions = ['Class 8', 'Class 9', 'Class 10']
+const testDurationSeconds = 5 * 60
+
+interface QuizSession {
+  course: CourseSubject
+  questions: QuizQuestion[]
+  startedAt: Date
+  testId: string
+}
+
+interface QuizResult {
+  correct: number
+  percentage: number
+  score: number
+  wrong: number
+  durationSeconds: number
+}
+
+const average = (values: number[]) =>
+  values.length ? Math.round(values.reduce((total, value) => total + value, 0) / values.length) : 0
+
+const formatDuration = (seconds: number) => {
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+}
+
+const getCompletionPercentage = (attempts: QuizAttemptRecord[], courses: CourseSubject[]) => {
+  const totalTests = courses.reduce((total, course) => total + course.tests.length, 0)
+
+  if (!totalTests) {
+    return 0
+  }
+
+  const completedTests = new Set(attempts.map((attempt) => `${attempt.courseId}_${attempt.testId}`)).size
+
+  return Math.round((completedTests / totalTests) * 100)
+}
+
+const getSubjectAverages = (attempts: QuizAttemptRecord[]) => {
+  const grouped = attempts.reduce<Record<string, number[]>>((subjects, attempt) => {
+    subjects[attempt.subject] = [...(subjects[attempt.subject] ?? []), attempt.percentage]
+    return subjects
+  }, {})
+
+  return Object.entries(grouped).map(([subject, percentages]) => ({
+    average: average(percentages),
+    subject,
+  }))
+}
+
+const getStudentPerformanceRows = (attempts: QuizAttemptRecord[]) => {
+  const grouped = attempts.reduce<Record<string, QuizAttemptRecord[]>>((students, attempt) => {
+    students[attempt.studentId] = [...(students[attempt.studentId] ?? []), attempt]
+    return students
+  }, {})
+
+  return Object.entries(grouped).map(([studentId, records]) => ({
+    average: average(records.map((record) => record.percentage)),
+    attempts: records.length,
+    studentId,
+    studentName: records[0]?.studentName ?? 'Student',
+  }))
+}
 
 function TeacherDashboard() {
   const { user, userProfile } = useAuth()
@@ -84,13 +169,12 @@ function TeacherDashboard() {
   const [createdClassId, setCreatedClassId] = useState('')
   const [schoolName, setSchoolName] = useState('School')
   const [creatingClass, setCreatingClass] = useState(false)
-  const [studentRows, setStudentRows] = useState<JoinedStudentRow[]>([])
-  const [studentRowsError, setStudentRowsError] = useState<string | null>(null)
   const teacherId = user?.uid
   const schoolId = userProfile?.schoolId
   const classes = useTeacherClasses(teacherId, schoolId)
   const pendingStudents = usePendingStudentRequests(schoolId)
   const memberships = useTeacherClassMemberships(teacherId, schoolId)
+  const teacherAttempts = useTeacherQuizAttempts(teacherId, schoolId)
   const quizAttempts = useRealtimeCount(
     'quizAttempts',
     useMemo<QueryConstraint[]>(
@@ -119,51 +203,25 @@ function TeacherDashboard() {
     return unsubscribe
   }, [userProfile?.schoolCode])
 
-  useEffect(() => {
-    let cancelled = false
-
-    const loadStudents = async () => {
-      if (memberships.records.length === 0) {
-        setStudentRows([])
-        setStudentRowsError(null)
-        return
-      }
-
-      try {
-        const rows = await Promise.all(
-          memberships.records.map(async (membership) => {
-            const studentSnapshot = await getDoc(doc(db, 'students', membership.studentId))
-            const studentData = studentSnapshot.data()
-
-            return {
-              className: membership.className,
-              email: String(studentData?.email ?? ''),
-              fullName: String(studentData?.fullName ?? 'Student'),
-              joinedAt: membership.joinedAt,
-              lastActivityAt: membership.lastActivityAt,
-              membershipId: membership.id,
-            }
-          }),
-        )
-
-        if (!cancelled) {
-          setStudentRows(rows)
-          setStudentRowsError(null)
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setStudentRows([])
-          setStudentRowsError(error instanceof Error ? error.message : 'Unable to load students.')
-        }
-      }
-    }
-
-    void loadStudents()
-
-    return () => {
-      cancelled = true
-    }
-  }, [memberships.records])
+  const studentRows: JoinedStudentRow[] = memberships.records.map((membership) => ({
+    className: membership.className,
+    email: membership.studentEmail ?? 'Not available',
+    fullName: membership.studentName ?? 'Student',
+    joinedAt: membership.joinedAt,
+    lastActivityAt: membership.lastActivityAt,
+    membershipId: membership.id,
+  }))
+  const studentPerformanceRows = getStudentPerformanceRows(teacherAttempts.records)
+  const subjectAverages = getSubjectAverages(teacherAttempts.records)
+  const weakStudents = studentPerformanceRows.filter((student) => student.average < 50)
+  const strongStudents = studentPerformanceRows.filter((student) => student.average >= 80)
+  const completionPercentage = classes.records.length
+    ? Math.round(
+        (new Set(teacherAttempts.records.map((attempt) => `${attempt.studentId}_${attempt.courseId}_${attempt.testId}`)).size /
+          (classes.records.length * 6)) *
+          100,
+      )
+    : 0
 
   const handleLogout = async () => {
     await signOut(auth)
@@ -222,7 +280,7 @@ function TeacherDashboard() {
     classes.error ??
     pendingStudents.error ??
     memberships.error ??
-    studentRowsError ??
+    teacherAttempts.error ??
     quizAttempts.error ??
     attendance.error
 
@@ -265,9 +323,10 @@ function TeacherDashboard() {
         <StatCard icon={Users} label="Students Joined" loading={memberships.loading} value={memberships.records.length} />
         <StatCard icon={UserCheck} label="Pending Student Approvals" loading={pendingStudents.loading} value={pendingStudents.records.length} />
         <StatCard icon={BookOpen} label="Quiz Attempts" loading={quizAttempts.loading} value={quizAttempts.count} />
-        <StatCard icon={BarChart3} label="Average Score" loading={false} value={0} />
+        <StatCard icon={BarChart3} label="Average Marks" loading={teacherAttempts.loading} value={`${average(teacherAttempts.records.map((attempt) => attempt.percentage))}%`} />
         <StatCard icon={Check} label="Attendance" loading={attendance.loading} value={attendance.count} />
         <StatCard icon={GraduationCap} label="Active Students" loading={memberships.loading} value={new Set(memberships.records.map((membership) => membership.studentId)).size} />
+        <StatCard icon={Target} label="Completion" loading={teacherAttempts.loading} value={`${completionPercentage}%`} />
       </section>
 
       <section className="dashboard-section">
@@ -381,6 +440,68 @@ function TeacherDashboard() {
           </section>
         ) : null}
       </section>
+
+      <section className="dashboard-section">
+        <div className="page-heading split-heading">
+          <div>
+            <p className="eyebrow">Learning Analytics</p>
+            <h2>Student Performance</h2>
+          </div>
+          <span className="status-badge approved">{teacherAttempts.records.length} Attempts</span>
+        </div>
+        {teacherAttempts.loading ? <SkeletonGrid items={2} /> : null}
+        {!teacherAttempts.loading && teacherAttempts.records.length === 0 ? (
+          <EmptyState message="No test attempts submitted yet." />
+        ) : null}
+        {teacherAttempts.records.length > 0 ? (
+          <div className="learning-analytics-grid">
+            <article className="learning-panel">
+              <h3>Recent Test Attempts</h3>
+              <div className="mini-list">
+                {teacherAttempts.records.slice(0, 5).map((attempt) => (
+                  <div key={attempt.id}>
+                    <strong>{attempt.studentName}</strong>
+                    <span>{attempt.subject} · {attempt.testTitle} · {attempt.percentage}%</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+            <article className="learning-panel">
+              <h3>Weak Students</h3>
+              <div className="mini-list">
+                {(weakStudents.length ? weakStudents : studentPerformanceRows.slice(-3)).map((student) => (
+                  <div key={student.studentId}>
+                    <strong>{student.studentName}</strong>
+                    <span>{student.average}% average · {student.attempts} attempts</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+            <article className="learning-panel">
+              <h3>Strong Students</h3>
+              <div className="mini-list">
+                {(strongStudents.length ? strongStudents : studentPerformanceRows.slice(0, 3)).map((student) => (
+                  <div key={student.studentId}>
+                    <strong>{student.studentName}</strong>
+                    <span>{student.average}% average · {student.attempts} attempts</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+            <article className="learning-panel">
+              <h3>Subject Performance</h3>
+              <div className="mini-list">
+                {subjectAverages.map((subject) => (
+                  <div key={subject.subject}>
+                    <strong>{subject.subject}</strong>
+                    <span>{subject.average}% average</span>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </div>
+        ) : null}
+      </section>
     </main>
   )
 }
@@ -388,9 +509,39 @@ function TeacherDashboard() {
 function StudentDashboard() {
   const { user, userProfile } = useAuth()
   const studentProfile = useStudentProfile(user?.uid)
+  const memberships = useStudentClassMemberships(user?.uid, userProfile?.schoolId)
+  const attempts = useStudentQuizAttempts(user?.uid, userProfile?.schoolId)
   const [classId, setClassId] = useState('')
   const [joining, setJoining] = useState(false)
   const [showJoinForm, setShowJoinForm] = useState(false)
+  const joinedClass = memberships.records[0] ?? null
+  const courses = useMemo(() => getCoursesForClass(joinedClass?.className), [joinedClass?.className])
+  const [selectedCourseId, setSelectedCourseId] = useState('')
+  const selectedCourse = useMemo(
+    () => getCourseById(joinedClass?.className, selectedCourseId) ?? courses[0] ?? null,
+    [courses, joinedClass?.className, selectedCourseId],
+  )
+  const [quizSession, setQuizSession] = useState<QuizSession | null>(null)
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [visitedQuestionIds, setVisitedQuestionIds] = useState<Set<string>>(new Set())
+  const [remainingSeconds, setRemainingSeconds] = useState(testDurationSeconds)
+  const [submittingQuiz, setSubmittingQuiz] = useState(false)
+  const [quizResult, setQuizResult] = useState<QuizResult | null>(null)
+  const preparedQuestions = useMemo<PreparedQuestion[]>(
+    () => (quizSession ? prepareQuestions(quizSession.questions) : []),
+    [quizSession],
+  )
+  const currentQuestion = preparedQuestions[currentQuestionIndex]
+  const averageScore = average(attempts.records.map((attempt) => attempt.percentage))
+  const highestScore = attempts.records.length
+    ? Math.max(...attempts.records.map((attempt) => attempt.percentage))
+    : 0
+  const lowestScore = attempts.records.length
+    ? Math.min(...attempts.records.map((attempt) => attempt.percentage))
+    : 0
+  const subjectAverages = getSubjectAverages(attempts.records)
+  const completionPercentage = getCompletionPercentage(attempts.records, courses)
 
   const handleLogout = async () => {
     await signOut(auth)
@@ -417,6 +568,8 @@ function StudentDashboard() {
         classId,
         schoolId: userProfile.schoolId,
         studentId: user.uid,
+        studentEmail: studentProfile.record?.email ?? userProfile.email,
+        studentName: studentProfile.record?.fullName ?? userProfile.fullName,
       })
       setClassId('')
       setShowJoinForm(false)
@@ -428,15 +581,168 @@ function StudentDashboard() {
     }
   }
 
+  useEffect(() => {
+    if (!selectedCourseId && courses.length > 0) {
+      setSelectedCourseId(courses[0].id)
+    }
+  }, [courses, selectedCourseId])
+
+  const finishQuiz = useCallback(async () => {
+    if (!quizSession || !joinedClass || !user?.uid || !userProfile?.schoolId) {
+      return
+    }
+
+    const test = getTestById(quizSession.course, quizSession.testId)
+
+    if (!test) {
+      return
+    }
+
+    setSubmittingQuiz(true)
+
+    try {
+      const durationSeconds = Math.min(
+        testDurationSeconds,
+        Math.max(0, Math.round((Date.now() - quizSession.startedAt.getTime()) / 1000)),
+      )
+      const result = await submitQuizAttempt({
+        answers,
+        classId: joinedClass.classId,
+        className: joinedClass.className,
+        courseId: quizSession.course.id,
+        durationSeconds,
+        questions: quizSession.questions,
+        schoolId: userProfile.schoolId,
+        startedAt: quizSession.startedAt,
+        studentId: user.uid,
+        studentName: studentProfile.record?.fullName ?? userProfile.fullName,
+        subject: quizSession.course.name,
+        teacherId: joinedClass.teacherId,
+        testId: test.id,
+        testTitle: test.title,
+      })
+      setQuizResult({ ...result, durationSeconds })
+      setQuizSession(null)
+      toast.success('Test submitted')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to submit test.')
+    } finally {
+      setSubmittingQuiz(false)
+    }
+  }, [answers, joinedClass, quizSession, studentProfile.record?.fullName, user?.uid, userProfile])
+
+  useEffect(() => {
+    if (!quizSession || submittingQuiz) {
+      return undefined
+    }
+
+    const timerId = window.setInterval(() => {
+      const elapsedSeconds = Math.round((Date.now() - quizSession.startedAt.getTime()) / 1000)
+      const nextRemainingSeconds = Math.max(0, testDurationSeconds - elapsedSeconds)
+      setRemainingSeconds(nextRemainingSeconds)
+
+      if (nextRemainingSeconds === 0) {
+        window.clearInterval(timerId)
+        void finishQuiz()
+      }
+    }, 1000)
+
+    return () => window.clearInterval(timerId)
+  }, [finishQuiz, quizSession, submittingQuiz])
+
+  useEffect(() => {
+    if (!currentQuestion) {
+      return
+    }
+
+    setVisitedQuestionIds((current) => {
+      const next = new Set(current)
+      next.add(currentQuestion.id)
+      return next
+    })
+  }, [currentQuestion])
+
+  const startQuiz = (course: CourseSubject, testId: string) => {
+    const test = getTestById(course, testId)
+
+    if (!test) {
+      return
+    }
+
+    setQuizSession({
+      course,
+      questions: getQuestionsForTest(course, test),
+      startedAt: new Date(),
+      testId,
+    })
+    setAnswers({})
+    setCurrentQuestionIndex(0)
+    setVisitedQuestionIds(new Set())
+    setRemainingSeconds(testDurationSeconds)
+    setQuizResult(null)
+  }
+
   return (
-    <main className="role-dashboard">
-      <section className="login-panel student-dashboard-panel">
-        <div className="page-heading">
-          <p className="eyebrow">Student Dashboard</p>
-          <h1>{studentProfile.record?.fullName ?? userProfile?.fullName ?? 'Student'}</h1>
+    <main className="school-dashboard">
+      <header className="school-dashboard-header">
+        <div className="school-logo large">
+          {studentProfile.record?.fullName.charAt(0).toUpperCase() ?? userProfile?.fullName.charAt(0).toUpperCase() ?? 'S'}
         </div>
-        {studentProfile.error ? <ErrorState message={studentProfile.error} /> : null}
-        <dl className="profile-list">
+        <div className="school-dashboard-title">
+          <p className="eyebrow">My Dashboard</p>
+          <h1>{studentProfile.record?.fullName ?? userProfile?.fullName ?? 'Student'}</h1>
+          <dl>
+            <div>
+              <dt>Student ID</dt>
+              <dd>{user?.uid ?? 'Not available'}</dd>
+            </div>
+            <div>
+              <dt>School</dt>
+              <dd>{studentProfile.record?.schoolName ?? 'School'}</dd>
+            </div>
+            <div>
+              <dt>Class</dt>
+              <dd>{joinedClass?.className ?? 'Not joined'}</dd>
+            </div>
+            <div>
+              <dt>Joined Class</dt>
+              <dd>{joinedClass?.classId ?? 'Not available'}</dd>
+            </div>
+            <div>
+              <dt>Teacher</dt>
+              <dd>{joinedClass?.teacherName ?? joinedClass?.teacherId ?? 'Not assigned'}</dd>
+            </div>
+          </dl>
+        </div>
+        <button className="secondary-icon-button" type="button" onClick={handleLogout}>
+          <LogOut aria-hidden="true" />
+          Logout
+        </button>
+      </header>
+
+      {studentProfile.error ?? memberships.error ?? attempts.error ? (
+        <ErrorState message={studentProfile.error ?? memberships.error ?? attempts.error ?? 'Unable to load dashboard.'} />
+      ) : null}
+
+      <section className="stats-grid">
+        <StatCard icon={Target} label="Overall Progress" loading={attempts.loading} value={`${completionPercentage}%`} />
+        <StatCard icon={BookOpen} label="Tests Completed" loading={attempts.loading} value={new Set(attempts.records.map((attempt) => `${attempt.courseId}_${attempt.testId}`)).size} />
+        <StatCard icon={BarChart3} label="Average Score" loading={attempts.loading} value={`${averageScore}%`} />
+        <StatCard icon={Check} label="Attendance" loading={false} value="Future" />
+      </section>
+
+      <section className="dashboard-section">
+        <div className="page-heading split-heading">
+          <div>
+            <p className="eyebrow">Profile</p>
+            <h2>Student Information</h2>
+          </div>
+          <button className="secondary-icon-button" type="button" onClick={() => setShowJoinForm((current) => !current)}>
+            <Plus aria-hidden="true" />
+            Join Class
+          </button>
+        </div>
+        <dl className="profile-list learning-profile">
           <div>
             <dt>School</dt>
             <dd>{studentProfile.record?.schoolName ?? 'School'}</dd>
@@ -452,16 +758,6 @@ function StudentDashboard() {
             </dd>
           </div>
         </dl>
-        <div className="card-actions two-actions">
-          <button type="button" onClick={() => setShowJoinForm((current) => !current)}>
-            <Plus aria-hidden="true" />
-            Join Class
-          </button>
-          <button type="button" onClick={handleLogout}>
-            <LogOut aria-hidden="true" />
-            Logout
-          </button>
-        </div>
         {showJoinForm ? (
           <form className="login-form join-class-form" onSubmit={handleJoinClass}>
             <label>
@@ -478,6 +774,192 @@ function StudentDashboard() {
             </button>
           </form>
         ) : null}
+      </section>
+
+      <section className="dashboard-section">
+        <div className="page-heading">
+          <p className="eyebrow">My Courses</p>
+          <h2>{joinedClass?.className ?? 'Join a class to see courses'}</h2>
+        </div>
+        {!joinedClass && !memberships.loading ? <EmptyState message="Join a class with your Class ID to unlock courses." /> : null}
+        {joinedClass && courses.length === 0 ? <EmptyState message="Courses for this class are coming soon." /> : null}
+        {courses.length > 0 ? (
+          <div className="course-grid">
+            {courses.map((course) => (
+              <button
+                className={course.id === selectedCourse?.id ? 'course-card active' : 'course-card'}
+                key={course.id}
+                type="button"
+                onClick={() => setSelectedCourseId(course.id)}
+              >
+                <BookOpen aria-hidden="true" />
+                <strong>{course.name}</strong>
+                <span>{course.chapters.length} chapters · {course.tests.length} tests</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      {selectedCourse ? (
+        <section className="dashboard-section">
+          <div className="page-heading split-heading">
+            <div>
+              <p className="eyebrow">Subject Page</p>
+              <h2>{selectedCourse.name}</h2>
+            </div>
+            <span className="status-badge approved">Study Materials</span>
+          </div>
+          <div className="chapter-grid">
+            {selectedCourse.chapters.map((chapter) => (
+              <article className="learning-panel" key={chapter.id}>
+                <h3>{chapter.title}</h3>
+                <div className="learning-actions">
+                  <a href={chapter.videoUrl} rel="noreferrer" target="_blank">
+                    <PlayCircle aria-hidden="true" />
+                    Video
+                  </a>
+                  <a href={chapter.pdfUrl} rel="noreferrer" target="_blank">
+                    <FileText aria-hidden="true" />
+                    PDF
+                  </a>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="test-grid">
+            {selectedCourse.tests.map((test) => (
+              <article className="learning-panel" key={test.id}>
+                <h3>{test.title}</h3>
+                <p>{test.chapterRange}</p>
+                <button className="primary-button icon-button" type="button" onClick={() => startQuiz(selectedCourse, test.id)}>
+                  <Clock aria-hidden="true" />
+                  Start 5 min test
+                </button>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {quizSession && currentQuestion ? (
+        <section className="dashboard-section quiz-section">
+          <div className="page-heading split-heading">
+            <div>
+              <p className="eyebrow">{quizSession.course.name}</p>
+              <h2>{getTestById(quizSession.course, quizSession.testId)?.title ?? 'Practice Test'}</h2>
+            </div>
+            <span className="timer-badge">{formatDuration(remainingSeconds)}</span>
+          </div>
+          <div className="question-nav">
+            {preparedQuestions.map((question, index) => {
+              const isAnswered = Boolean(answers[question.id])
+              const isVisited = visitedQuestionIds.has(question.id)
+              const statusClass = isAnswered ? 'answered' : isVisited ? 'unanswered' : 'not-visited'
+
+              return (
+                <button
+                  className={`${statusClass} ${index === currentQuestionIndex ? 'active' : ''}`}
+                  key={question.id}
+                  type="button"
+                  onClick={() => setCurrentQuestionIndex(index)}
+                >
+                  {index + 1}
+                </button>
+              )
+            })}
+          </div>
+          <article className="quiz-card">
+            <strong>Question {currentQuestionIndex + 1}</strong>
+            <h3>{currentQuestion.prompt}</h3>
+            <div className="option-grid">
+              {currentQuestion.options.map((option) => (
+                <button
+                  className={answers[currentQuestion.id] === option ? 'selected' : ''}
+                  key={option}
+                  type="button"
+                  onClick={() => setAnswers((current) => ({ ...current, [currentQuestion.id]: option }))}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </article>
+          <div className="quiz-controls">
+            <button
+              className="secondary-icon-button"
+              disabled={currentQuestionIndex === 0}
+              type="button"
+              onClick={() => setCurrentQuestionIndex((index) => Math.max(0, index - 1))}
+            >
+              Previous
+            </button>
+            <button
+              className="secondary-icon-button"
+              disabled={currentQuestionIndex === preparedQuestions.length - 1}
+              type="button"
+              onClick={() => setCurrentQuestionIndex((index) => Math.min(preparedQuestions.length - 1, index + 1))}
+            >
+              Next
+            </button>
+            <button className="primary-button" disabled={submittingQuiz} type="button" onClick={() => void finishQuiz()}>
+              {submittingQuiz ? 'Submitting...' : 'Submit Test'}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {quizResult ? (
+        <section className="dashboard-section">
+          <div className="page-heading">
+            <p className="eyebrow">Submission</p>
+            <h2>Test Result</h2>
+          </div>
+          <div className="stats-grid">
+            <StatCard icon={Award} label="Score" loading={false} value={`${quizResult.score}/10`} />
+            <StatCard icon={Check} label="Correct" loading={false} value={quizResult.correct} />
+            <StatCard icon={X} label="Wrong" loading={false} value={quizResult.wrong} />
+            <StatCard icon={Clock} label="Time Taken" loading={false} value={formatDuration(quizResult.durationSeconds)} />
+          </div>
+          <strong className="result-percentage">{quizResult.percentage}%</strong>
+        </section>
+      ) : null}
+
+      <section className="dashboard-section">
+        <div className="page-heading">
+          <p className="eyebrow">Student Analytics</p>
+          <h2>Performance</h2>
+        </div>
+        <div className="stats-grid">
+          <StatCard icon={BarChart3} label="Average Score" loading={attempts.loading} value={`${averageScore}%`} />
+          <StatCard icon={Award} label="Highest Score" loading={attempts.loading} value={`${highestScore}%`} />
+          <StatCard icon={Target} label="Lowest Score" loading={attempts.loading} value={`${lowestScore}%`} />
+          <StatCard icon={Check} label="Completion" loading={attempts.loading} value={`${completionPercentage}%`} />
+        </div>
+        <div className="learning-analytics-grid">
+          <article className="learning-panel">
+            <h3>Subject-wise Performance</h3>
+            <div className="mini-list">
+              {subjectAverages.length ? subjectAverages.map((subject) => (
+                <div key={subject.subject}>
+                  <strong>{subject.subject}</strong>
+                  <span>{subject.average}% average</span>
+                </div>
+              )) : <span>No subject attempts yet.</span>}
+            </div>
+          </article>
+          <article className="learning-panel">
+            <h3>Recent Attempts</h3>
+            <div className="mini-list">
+              {attempts.records.length ? attempts.records.slice(0, 5).map((attempt) => (
+                <div key={attempt.id}>
+                  <strong>{attempt.subject} · {attempt.testTitle}</strong>
+                  <span>{attempt.percentage}% · Attempt {attempt.attemptNumber}</span>
+                </div>
+              )) : <span>No attempts submitted yet.</span>}
+            </div>
+          </article>
+        </div>
       </section>
     </main>
   )

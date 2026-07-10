@@ -51,8 +51,11 @@ export interface ClassMembership {
   joinedAt?: { toDate?: () => Date; toMillis?: () => number }
   lastActivityAt?: { toDate?: () => Date; toMillis?: () => number } | null
   schoolId: string
+  studentEmail?: string
   studentId: string
+  studentName?: string
   teacherId: string
+  teacherName?: string
 }
 
 interface RealtimeListState<T> {
@@ -110,8 +113,11 @@ const toClassMembership = (id: string, data: DocumentData): ClassMembership => (
   joinedAt: data.joinedAt,
   lastActivityAt: data.lastActivityAt ?? null,
   schoolId: String(data.schoolId ?? ''),
+  studentEmail: typeof data.studentEmail === 'string' ? data.studentEmail : undefined,
   studentId: String(data.studentId ?? ''),
+  studentName: typeof data.studentName === 'string' ? data.studentName : undefined,
   teacherId: String(data.teacherId ?? ''),
+  teacherName: typeof data.teacherName === 'string' ? data.teacherName : undefined,
 })
 
 function useRealtimeList<T>(

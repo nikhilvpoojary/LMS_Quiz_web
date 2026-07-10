@@ -91,9 +91,11 @@ export interface JoinClassValues {
   classId: string
   schoolId: string
   studentId: string
+  studentEmail: string
+  studentName: string
 }
 
-export const joinClass = async ({ classId, schoolId, studentId }: JoinClassValues) => {
+export const joinClass = async ({ classId, schoolId, studentEmail, studentId, studentName }: JoinClassValues) => {
   const normalizedClassId = classId.trim().toUpperCase()
   const classSnapshot = await getDoc(doc(db, 'classes', normalizedClassId))
 
@@ -119,7 +121,10 @@ export const joinClass = async ({ classId, schoolId, studentId }: JoinClassValue
     joinedAt: serverTimestamp(),
     lastActivityAt: null,
     schoolId,
+    studentEmail,
     studentId,
     teacherId: String(classData.teacherId ?? ''),
+    teacherName: String(classData.teacherName ?? ''),
+    studentName,
   })
 }

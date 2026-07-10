@@ -32,7 +32,9 @@
 .table-card,
 .chart-placeholder,
 .state-panel,
-.loader-card {
+.loader-card,
+.learning-panel,
+.quiz-card {
   border: 1px solid rgba(255, 255, 255, 0.62);
   background: var(--panel);
   backdrop-filter: blur(22px);
@@ -921,6 +923,229 @@
   font: inherit;
 }
 
+.profile-list.learning-profile {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+}
+
+.profile-list.learning-profile div,
+.learning-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.profile-list.learning-profile dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-list.learning-profile dd {
+  margin: 0;
+  color: var(--heading);
+  overflow-wrap: anywhere;
+}
+
+.course-grid,
+.chapter-grid,
+.test-grid,
+.learning-analytics-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.course-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.chapter-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.test-grid,
+.learning-analytics-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.course-card,
+.learning-panel,
+.quiz-card {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.course-card {
+  min-height: 120px;
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 18px;
+  border-radius: var(--radius);
+  color: var(--heading);
+  text-align: left;
+}
+
+.course-card.active {
+  border-color: rgba(37, 99, 235, 0.42);
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.course-card svg,
+.learning-actions svg {
+  width: 22px;
+  height: 22px;
+  color: var(--brand);
+}
+
+.course-card strong,
+.learning-panel h3,
+.quiz-card h3 {
+  color: var(--heading);
+}
+
+.course-card span,
+.learning-panel p,
+.mini-list span {
+  color: var(--muted);
+}
+
+.learning-panel,
+.quiz-card {
+  padding: 18px;
+  border-radius: var(--radius);
+}
+
+.learning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.learning-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--heading);
+  background: rgba(255, 255, 255, 0.82);
+  font-weight: 800;
+}
+
+.timer-badge,
+.result-percentage {
+  width: fit-content;
+  border-radius: var(--radius);
+  color: #fff;
+  background: var(--heading);
+  font-weight: 900;
+}
+
+.timer-badge {
+  padding: 10px 14px;
+}
+
+.question-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.question-nav button {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--heading);
+  font-weight: 900;
+}
+
+.question-nav button.not-visited {
+  background: #e5e7eb;
+}
+
+.question-nav button.unanswered {
+  color: #fff;
+  background: var(--rose);
+}
+
+.question-nav button.answered {
+  color: #fff;
+  background: var(--teal);
+}
+
+.question-nav button.active {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18);
+}
+
+.quiz-section {
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+.option-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.option-grid button {
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--heading);
+  background: rgba(255, 255, 255, 0.88);
+  text-align: left;
+}
+
+.option-grid button.selected {
+  border-color: rgba(20, 184, 166, 0.48);
+  background: rgba(20, 184, 166, 0.13);
+}
+
+.quiz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.quiz-controls .primary-button {
+  min-height: 38px;
+  padding: 0 16px;
+}
+
+.result-percentage {
+  display: inline-grid;
+  place-items: center;
+  min-height: 52px;
+  padding: 0 18px;
+  font-size: 1.6rem;
+}
+
+.mini-list {
+  display: grid;
+  gap: 10px;
+}
+
+.mini-list div {
+  display: grid;
+  gap: 2px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mini-list div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
 .pagination {
   display: flex;
   align-items: center;
@@ -1070,7 +1295,10 @@
   .portal-grid,
   .stats-grid,
   .analytics-grid,
-  .register-options {
+  .register-options,
+  .chapter-grid,
+  .test-grid,
+  .learning-analytics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1114,7 +1342,8 @@
   .table-row,
   .teachers-row,
   .school-dashboard-header,
-  .school-dashboard-title dl {
+  .school-dashboard-title dl,
+  .profile-list.learning-profile {
     grid-template-columns: 1fr;
   }
 
@@ -1139,6 +1368,10 @@
   .stats-grid,
   .analytics-grid,
   .register-options,
+  .course-grid,
+  .chapter-grid,
+  .test-grid,
+  .learning-analytics-grid,
   .school-grid,
   .skeleton-grid,
   .admin-sidebar nav {

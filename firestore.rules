@@ -130,6 +130,19 @@ service cloud.firestore {
         (isTeacherFor(data.schoolId) && data.teacherId == request.auth.uid);
     }
 
+    function canReadStudentProfile(data, studentId) {
+      return isSuperAdmin() ||
+        isSchoolAdminFor(data.schoolId) ||
+        (signedIn() && request.auth.uid == studentId);
+    }
+
+    function canReadQuizAttempt(data) {
+      return isSuperAdmin() ||
+        isSchoolAdminFor(data.schoolId) ||
+        (isStudentFor(data.schoolId) && data.studentId == request.auth.uid) ||
+        (isTeacherFor(data.schoolId) && data.teacherId == request.auth.uid);
+    }
+
     function canBootstrapCollection(collectionId) {
       return collectionId in [
         'schoolCodes',
@@ -531,10 +544,8 @@ service cloud.firestore {
     }
 
     match /students/{studentId} {
-      allow get: if isSuperAdmin() ||
-        (signedIn() && request.auth.uid == studentId) ||
-        canReadTenant(resource.data);
-      allow list: if isSuperAdmin() || canReadTenant(resource.data);
+      allow get: if canReadStudentProfile(resource.data, studentId);
+      allow list: if isSuperAdmin() || isSchoolAdminFor(resource.data.schoolId);
 
       allow create: if signedIn() &&
         request.auth.uid == studentId &&
@@ -606,8 +617,11 @@ service cloud.firestore {
           'joinedAt',
           'lastActivityAt',
           'schoolId',
+          'studentEmail',
           'studentId',
-          'teacherId'
+          'studentName',
+          'teacherId',
+          'teacherName'
         ]) &&
         request.resource.data.studentId == request.auth.uid &&
         membershipId == request.resource.data.classId + '_' + request.auth.uid &&
@@ -615,8 +629,11 @@ service cloud.firestore {
         get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.schoolId == request.resource.data.schoolId &&
         get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.status == 'active' &&
         get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.teacherId == request.resource.data.teacherId &&
+        get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.teacherName == request.resource.data.teacherName &&
         request.resource.data.className ==
           get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.className &&
+        request.resource.data.studentName is string &&
+        request.resource.data.studentEmail is string &&
         timestampOrServerTime(request.resource.data.joinedAt);
 
       allow update: if canStaffManageTenant(resource.data) &&
@@ -650,15 +667,52 @@ service cloud.firestore {
     }
 
     match /quizAttempts/{attemptId} {
-      allow get: if isSuperAdmin() ||
-        (signedIn() && request.auth.uid == resource.data.studentId) ||
-        canReadTenant(resource.data);
-      allow list: if isSuperAdmin() ||
-        canReadTenant(resource.data) ||
-        (isStudent() && resource.data.studentId == request.auth.uid);
+      allow get: if canReadQuizAttempt(resource.data);
+      allow list: if canReadQuizAttempt(resource.data);
 
       allow create: if isStudentFor(request.resource.data.schoolId) &&
         request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.keys().hasOnly([
+          'answers',
+          'attemptNumber',
+          'classId',
+          'className',
+          'correct',
+          'correctAnswers',
+          'courseId',
+          'duration',
+          'percentage',
+          'schoolId',
+          'score',
+          'startedAt',
+          'studentId',
+          'studentName',
+          'subject',
+          'submittedAt',
+          'teacherId',
+          'testId',
+          'testTitle',
+          'totalQuestions',
+          'wrong'
+        ]) &&
+        exists(/databases/$(database)/documents/classes/$(request.resource.data.classId)) &&
+        get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.schoolId == request.resource.data.schoolId &&
+        get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.teacherId == request.resource.data.teacherId &&
+        get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.className == request.resource.data.className &&
+        request.resource.data.answers is list &&
+        request.resource.data.correctAnswers is list &&
+        request.resource.data.attemptNumber is number &&
+        request.resource.data.correct is number &&
+        request.resource.data.duration is number &&
+        request.resource.data.percentage is number &&
+        request.resource.data.score is number &&
+        request.resource.data.totalQuestions == 10 &&
+        request.resource.data.wrong is number &&
+        request.resource.data.studentName is string &&
+        request.resource.data.subject is string &&
+        request.resource.data.testTitle is string &&
+        timestampOrServerTime(request.resource.data.startedAt) &&
+        timestampOrServerTime(request.resource.data.submittedAt) &&
         validTenantCreate();
 
       allow update: if (
