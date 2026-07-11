@@ -382,26 +382,43 @@ export function LandingPage() {
 
       {/* Metrics Section */}
       <section className="landing-section" id="metrics">
+        <div className="section-header">
+          <h2>StudyHub in Numbers</h2>
+          <p>
+            Real-time platform analytics showing our active footprint and platform reliability.
+          </p>
+        </div>
         <div className="metrics-panel">
           <div className="metric-item">
+            <div className="metric-icon accent-blue">
+              <School size={24} aria-hidden="true" />
+            </div>
             <span className="metric-number">450+</span>
-            <span className="metric-label">Verified Schools</span>
-            <span className="metric-desc">Connected internationally</span>
+            <span className="metric-label">Partner Schools</span>
           </div>
+
           <div className="metric-item">
+            <div className="metric-icon accent-yellow">
+              <GraduationCap size={24} aria-hidden="true" />
+            </div>
             <span className="metric-number">18,400+</span>
-            <span className="metric-label">Active Enrollees</span>
-            <span className="metric-desc">Receiving live instruction</span>
+            <span className="metric-label">Active Students</span>
           </div>
+
           <div className="metric-item">
+            <div className="metric-icon accent-purple">
+              <Compass size={24} aria-hidden="true" />
+            </div>
             <span className="metric-number">3,500+</span>
-            <span className="metric-label">Vetted Teachers</span>
-            <span className="metric-desc">Designing online courses</span>
+            <span className="metric-label">Expert Mentors</span>
           </div>
+
           <div className="metric-item">
+            <div className="metric-icon accent-coral">
+              <ShieldCheck size={24} aria-hidden="true" />
+            </div>
             <span className="metric-number">99.9%</span>
             <span className="metric-label">System Uptime</span>
-            <span className="metric-desc">Powered by secure servers</span>
           </div>
         </div>
       </section>
