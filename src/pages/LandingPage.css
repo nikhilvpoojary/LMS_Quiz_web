@@ -883,10 +883,10 @@
 
 /* Footer styling */
 .landing-footer {
-  background: #0d121f;
-  color: var(--lp-muted);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 70px 24px 30px 24px;
+  background: #090d16;
+  color: #94a3b8;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 80px 24px 40px 24px;
 }
 
 .footer-content {
@@ -900,35 +900,36 @@
 .footer-brand {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .footer-logo {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: white;
+  color: #ffffff;
   font-family: 'Outfit', sans-serif;
   font-weight: 800;
-  font-size: 1.25rem;
+  font-size: 1.3rem;
 }
 
 .footer-logo-icon {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   background: linear-gradient(135deg, var(--lp-primary) 0%, var(--lp-purple) 100%);
   color: white;
   display: grid;
   place-items: center;
   font-weight: 800;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   border-radius: 8px;
 }
 
 .footer-brand p {
   font-size: 0.875rem;
   line-height: 1.6;
-  max-width: 260px;
+  max-width: 280px;
+  color: #94a3b8;
 }
 
 .footer-column {
@@ -938,10 +939,12 @@
 }
 
 .footer-column h4 {
-  color: white;
-  font-weight: 700;
+  color: #ffffff;
+  font-weight: 750;
   font-size: 0.95rem;
   margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
 }
 
 .footer-links {
@@ -955,28 +958,32 @@
 
 .footer-links a {
   font-size: 0.875rem;
-  color: var(--lp-muted);
-  transition: color 0.2s ease;
+  color: #94a3b8;
+  display: inline-block;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .footer-links a:hover {
-  color: white;
+  color: #ffffff;
+  transform: translateX(4px);
 }
 
 .footer-bottom {
   max-width: 1200px;
   margin: 60px auto 0 auto;
   padding-top: 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 0.825rem;
+  color: #64748b;
 }
 
 .footer-socials {
   display: flex;
   gap: 16px;
+  font-weight: 500;
 }
 
 /* Responsiveness adjustments */

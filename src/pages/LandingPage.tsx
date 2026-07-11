@@ -414,34 +414,34 @@ export function LandingPage() {
               <span>StudyHub LMS</span>
             </div>
             <p>
-              A professional real-time school and learning management center bringing structure, speed, and safety to classroom experiences.
+              A professional real-time learning management ecosystem bringing structure, speed, and safety to classroom experiences.
             </p>
           </div>
 
           <div className="footer-column">
             <h4>Solutions</h4>
             <ul className="footer-links">
-              <li><Link to="/register/school">Schools & Admin</Link></li>
-              <li><Link to="/register/teacher">Academic Teachers</Link></li>
-              <li><Link to="/register/student">Student Progression</Link></li>
+              <li><Link to="/register/student">Student Roadmaps</Link></li>
+              <li><Link to="/register/teacher">Teacher Gradebooks</Link></li>
+              <li><Link to="/register/school">Institutional Admin</Link></li>
             </ul>
           </div>
 
           <div className="footer-column">
-            <h4>Security</h4>
+            <h4>Platform</h4>
             <ul className="footer-links">
-              <li><a href="#features">Firebase Rules</a></li>
-              <li><a href="#features">Vetting Flow</a></li>
-              <li><a href="#features">Data Protection</a></li>
+              <li><a href="#features">Firebase Sync</a></li>
+              <li><a href="#portals">Role Portals</a></li>
+              <li><a href="#metrics">System Analytics</a></li>
             </ul>
           </div>
 
           <div className="footer-column">
-            <h4>Connect</h4>
+            <h4>Support</h4>
             <ul className="footer-links">
-              <li><Link to="/login">Principal Login</Link></li>
-              <li><Link to="/register">Open Enrollment</Link></li>
-              <li><a href="mailto:support@studyhublms.com">Support</a></li>
+              <li><Link to="/login">Account Access</Link></li>
+              <li><a href="mailto:support@studyhublms.com">Help Center</a></li>
+              <li><a href="#features">Security Policy</a></li>
             </ul>
           </div>
         </div>
@@ -449,9 +449,9 @@ export function LandingPage() {
         <div className="footer-bottom">
           <span>&copy; {new Date().getFullYear()} StudyHub LMS. All rights reserved.</span>
           <div className="footer-socials">
-            <span>Security Certified</span>
+            <span>Firebase Verified</span>
             <span>&bull;</span>
-            <span>Real-time Active</span>
+            <span>Uptime 99.9%</span>
           </div>
         </div>
       </footer>
