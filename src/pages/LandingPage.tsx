@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { 
   ArrowRight, 
@@ -10,26 +9,12 @@ import {
   GraduationCap, 
   CheckCircle2,
   Compass,
-  ArrowUpRight,
-  Sun,
-  Moon
+  ArrowUpRight
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import './LandingPage.css'
 
 export function LandingPage() {
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('lp-theme') || 'light'
-  })
-
-  useEffect(() => {
-    localStorage.setItem('lp-theme', theme)
-  }, [theme])
-
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light')
-  }
-
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -50,7 +35,7 @@ export function LandingPage() {
   }
 
   return (
-    <main className={`landing-page-container ${theme}`}>
+    <main className="landing-page-container">
       {/* Background Animated Blobs */}
       <div className="bg-blobs" aria-hidden="true">
         <div className="blob blob-1"></div>
@@ -72,9 +57,6 @@ export function LandingPage() {
           </nav>
 
           <div className="nav-actions">
-            <button className="btn-theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
             <Link className="btn-nav-login" to="/login">Sign In</Link>
             <Link className="btn-nav-register" to="/register">Get Started</Link>
           </div>
