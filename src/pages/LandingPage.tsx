@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { 
   ArrowRight, 
@@ -9,12 +10,26 @@ import {
   GraduationCap, 
   CheckCircle2,
   Compass,
-  ArrowUpRight
+  ArrowUpRight,
+  Sun,
+  Moon
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import './LandingPage.css'
 
 export function LandingPage() {
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('lp-theme') || 'light'
+  })
+
+  useEffect(() => {
+    localStorage.setItem('lp-theme', theme)
+  }, [theme])
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light')
+  }
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -27,15 +42,15 @@ export function LandingPage() {
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
       transition: { duration: 0.6, ease: 'easeOut' as const }
     }
   }
 
   return (
-    <main className="landing-page-container">
+    <main className={`landing-page-container ${theme}`}>
       {/* Background Animated Blobs */}
       <div className="bg-blobs" aria-hidden="true">
         <div className="blob blob-1"></div>
@@ -57,6 +72,9 @@ export function LandingPage() {
           </nav>
 
           <div className="nav-actions">
+            <button className="btn-theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
             <Link className="btn-nav-login" to="/login">Sign In</Link>
             <Link className="btn-nav-register" to="/register">Get Started</Link>
           </div>
@@ -65,7 +83,7 @@ export function LandingPage() {
 
       {/* Hero Section */}
       <section className="landing-section hero-grid">
-        <motion.div 
+        <motion.div
           className="hero-text-content"
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
@@ -79,7 +97,7 @@ export function LandingPage() {
             One calm command center for <span className="gradient-text">modern education</span>.
           </h1>
           <p className="hero-description">
-            Connect administrators, teachers, and students instantly. Manage credentials, assignments, 
+            Connect administrators, teachers, and students instantly. Manage credentials, assignments,
             grades, and analytical reports through a blazing fast, Firebase-powered experience.
           </p>
           <div className="hero-ctas">
@@ -94,7 +112,7 @@ export function LandingPage() {
         </motion.div>
 
         {/* Dashboard Mockup Panel */}
-        <motion.div 
+        <motion.div
           className="mockup-container"
           initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
@@ -107,23 +125,23 @@ export function LandingPage() {
           >
             {/* Floating Widget 1 */}
             <div className="floating-widget widget-approval">
-              <div className="widget-icon-box bg-coral">
-                <CheckCircle2 size={18} />
+              <div className="widget-icon-box bg-purple">
+                <GraduationCap size={18} />
               </div>
               <div className="widget-info">
-                <span>Schools Active</span>
-                <strong>450+ Verified</strong>
+                <span>Courses Enrolled</span>
+                <strong>8 Active</strong>
               </div>
             </div>
 
             {/* Floating Widget 2 */}
             <div className="floating-widget widget-students">
               <div className="widget-icon-box bg-blue">
-                <Users size={18} />
+                <CheckCircle2 size={18} />
               </div>
               <div className="widget-info">
-                <span>Total Live Users</span>
-                <strong>18,400+ Realtime</strong>
+                <span>Tasks Finished</span>
+                <strong>24 / 28</strong>
               </div>
             </div>
 
@@ -132,26 +150,26 @@ export function LandingPage() {
                 <div className="mockup-avatar" aria-hidden="true"></div>
                 <div className="mockup-user">
                   <span>Welcome back,</span>
-                  <h4>Principal Admin</h4>
+                  <h4>Wesley Matthews</h4>
                 </div>
               </div>
-              <div className="mockup-badge">Overview</div>
+              <div className="mockup-badge">Student</div>
             </div>
 
             <div className="mockup-grid">
               <div className="mockup-card">
-                <span>Approval Queue</span>
-                <h3>12 Pending</h3>
+                <span>Cumulative GPA</span>
+                <h3>3.86 GPA</h3>
               </div>
               <div className="mockup-card">
-                <span>Avg Grade Rate</span>
-                <h3>88.4%</h3>
+                <span>Overall Attendance</span>
+                <h3>96.8%</h3>
               </div>
             </div>
 
             <div className="mockup-chart">
               <div className="chart-header">
-                <span>Weekly Activity Peak</span>
+                <span>Daily Study Hours</span>
                 <span>Mon - Fri</span>
               </div>
               <div className="chart-bars">
@@ -179,20 +197,20 @@ export function LandingPage() {
             </div>
 
             <div className="mockup-list">
-              <div className="mockup-list-title">Live Systems Check</div>
+              <div className="mockup-list-title">Today's Class Schedule</div>
               <div className="mockup-list-item">
                 <div>
                   <span className="mockup-status-dot"></span>
-                  <span>Firebase Server Sync</span>
+                  <span>The Complete Web Dev Bootcamp</span>
                 </div>
-                <small>Connected</small>
+                <small>09:00 AM</small>
               </div>
               <div className="mockup-list-item">
                 <div>
                   <span className="mockup-status-dot"></span>
-                  <span>Database Rules Unit</span>
+                  <span>Data Science Masterclass</span>
                 </div>
-                <small>Secure</small>
+                <small>02:00 PM</small>
               </div>
             </div>
           </motion.div>
@@ -204,7 +222,7 @@ export function LandingPage() {
         <div className="section-header">
           <h2>Engineered for Excellence</h2>
           <p>
-            An school ecosystem engineered with modern, cloud-first technologies to remove friction 
+            An school ecosystem engineered with modern, cloud-first technologies to remove friction
             from administrative tasks and teaching processes.
           </p>
         </div>
@@ -216,7 +234,7 @@ export function LandingPage() {
             </div>
             <h3>Real-time Synchronization</h3>
             <p>
-              Built-in Firebase integration ensures grades, announcements, and registrations 
+              Built-in Firebase integration ensures grades, announcements, and registrations
               propagate instantly to all active devices.
             </p>
           </div>
@@ -227,7 +245,7 @@ export function LandingPage() {
             </div>
             <h3>Role-Based Control</h3>
             <p>
-              Dedicated login portals tailored specifically for site administrators, school principals, 
+              Dedicated login portals tailored specifically for site administrators, school principals,
               classroom teachers, and students.
             </p>
           </div>
@@ -238,7 +256,7 @@ export function LandingPage() {
             </div>
             <h3>Analytics Command</h3>
             <p>
-              Comprehensive analytics track school onboarding progress, teacher assignments, and 
+              Comprehensive analytics track school onboarding progress, teacher assignments, and
               student grading averages.
             </p>
           </div>
@@ -249,7 +267,7 @@ export function LandingPage() {
             </div>
             <h3>Approval Verification</h3>
             <p>
-              Strict registration pipeline ensures school profiles, educators, and pupils 
+              Strict registration pipeline ensures school profiles, educators, and pupils
               are thoroughly vetted before gaining portal access.
             </p>
           </div>
@@ -261,12 +279,12 @@ export function LandingPage() {
         <div className="section-header">
           <h2>Select Your Experience</h2>
           <p>
-            StudyHub supports unique workflows tailored to different stakeholders in the academic process. 
+            StudyHub supports unique workflows tailored to different stakeholders in the academic process.
             Choose your portal below to sign up.
           </p>
         </div>
 
-        <motion.div 
+        <motion.div
           className="portals-grid-landing"
           variants={containerVariants}
           initial="hidden"
@@ -302,37 +320,8 @@ export function LandingPage() {
             </Link>
           </motion.div>
 
-          {/* Teacher Portal (Highlighted) */}
+          {/* Student Portal (Highlighted) */}
           <motion.div className="portal-card-landing highlight" variants={itemVariants}>
-            <div className="portal-top-content">
-              <div className="portal-card-icon" style={{ background: 'linear-gradient(135deg, var(--lp-purple) 0%, #9033c4 100%)' }}>
-                <Compass size={24} aria-hidden="true" />
-              </div>
-              <h3>Teacher Portal</h3>
-              <p>Manage your schedules, design virtual classrooms, grade assignments, and monitor student metrics in real time.</p>
-              <div className="portal-features-list">
-                <div className="portal-feature-item">
-                  <CheckCircle2 size={16} aria-hidden="true" />
-                  <span>Live Gradebook Builder</span>
-                </div>
-                <div className="portal-feature-item">
-                  <CheckCircle2 size={16} aria-hidden="true" />
-                  <span>Real-time Student Tracking</span>
-                </div>
-                <div className="portal-feature-item">
-                  <CheckCircle2 size={16} aria-hidden="true" />
-                  <span>Assignment Submission Engine</span>
-                </div>
-              </div>
-            </div>
-            <Link className="btn-portal-action" to="/register/teacher">
-              Register Teacher
-              <ArrowUpRight size={16} aria-hidden="true" />
-            </Link>
-          </motion.div>
-
-          {/* Student Portal */}
-          <motion.div className="portal-card-landing" variants={itemVariants}>
             <div className="portal-top-content">
               <div className="portal-card-icon" style={{ background: 'linear-gradient(135deg, var(--lp-yellow) 0%, #d9a014 100%)' }}>
                 <GraduationCap size={24} aria-hidden="true" />
@@ -356,6 +345,35 @@ export function LandingPage() {
             </div>
             <Link className="btn-portal-action" to="/register/student">
               Register Student
+              <ArrowUpRight size={16} aria-hidden="true" />
+            </Link>
+          </motion.div>
+
+          {/* Teacher Portal */}
+          <motion.div className="portal-card-landing" variants={itemVariants}>
+            <div className="portal-top-content">
+              <div className="portal-card-icon" style={{ background: 'linear-gradient(135deg, var(--lp-purple) 0%, #9033c4 100%)' }}>
+                <Compass size={24} aria-hidden="true" />
+              </div>
+              <h3>Teacher Portal</h3>
+              <p>Manage your schedules, design virtual classrooms, grade assignments, and monitor student metrics in real time.</p>
+              <div className="portal-features-list">
+                <div className="portal-feature-item">
+                  <CheckCircle2 size={16} aria-hidden="true" />
+                  <span>Live Gradebook Builder</span>
+                </div>
+                <div className="portal-feature-item">
+                  <CheckCircle2 size={16} aria-hidden="true" />
+                  <span>Real-time Student Tracking</span>
+                </div>
+                <div className="portal-feature-item">
+                  <CheckCircle2 size={16} aria-hidden="true" />
+                  <span>Assignment Submission Engine</span>
+                </div>
+              </div>
+            </div>
+            <Link className="btn-portal-action" to="/register/teacher">
+              Register Teacher
               <ArrowUpRight size={16} aria-hidden="true" />
             </Link>
           </motion.div>
