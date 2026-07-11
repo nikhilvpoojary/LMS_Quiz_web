@@ -1,14 +1,11 @@
 import {
   Timestamp,
-  collection,
   doc,
-  getCountFromServer,
-  query,
   serverTimestamp,
   setDoc,
-  where,
 } from 'firebase/firestore'
 import { db } from '../firebase/firebase'
+import { courseCatalog, questionBank } from '../data/coursesData'
 
 export interface CourseSubject {
   id: string
@@ -67,133 +64,7 @@ export interface SubmitQuizAttemptValues {
   teacherId: string
   testId: string
   testTitle: string
-}
-
-const classNineSubjects: CourseSubject[] = [
-  {
-    id: 'class-9-science',
-    name: 'Science',
-    chapters: [
-      {
-        id: 'science-chapter-1',
-        title: 'Chapter 1: Matter in Our Surroundings',
-        videoTitle: 'Matter and Particle Nature',
-        videoUrl: 'https://www.youtube.com/results?search_query=class+9+science+matter+in+our+surroundings',
-        pdfTitle: 'Matter Notes',
-        pdfUrl: 'https://ncert.nic.in/textbook.php?iesc1=1-12',
-      },
-      {
-        id: 'science-chapter-2',
-        title: 'Chapter 2: Is Matter Around Us Pure',
-        videoTitle: 'Mixtures and Solutions',
-        videoUrl: 'https://www.youtube.com/results?search_query=class+9+science+is+matter+around+us+pure',
-        pdfTitle: 'Matter Around Us Notes',
-        pdfUrl: 'https://ncert.nic.in/textbook.php?iesc1=2-12',
-      },
-      {
-        id: 'science-chapter-3',
-        title: 'Chapter 3: Atoms and Molecules',
-        videoTitle: 'Atoms, Molecules, and Formulae',
-        videoUrl: 'https://www.youtube.com/results?search_query=class+9+science+atoms+and+molecules',
-        pdfTitle: 'Atoms Notes',
-        pdfUrl: 'https://ncert.nic.in/textbook.php?iesc1=3-12',
-      },
-      {
-        id: 'science-chapter-4',
-        title: 'Chapter 4: Structure of the Atom',
-        videoTitle: 'Atomic Structure Basics',
-        videoUrl: 'https://www.youtube.com/results?search_query=class+9+science+structure+of+atom',
-        pdfTitle: 'Atom Structure Notes',
-        pdfUrl: 'https://ncert.nic.in/textbook.php?iesc1=4-12',
-      },
-      {
-        id: 'science-chapter-5',
-        title: 'Chapter 5: The Fundamental Unit of Life',
-        videoTitle: 'Cells and Organelles',
-        videoUrl: 'https://www.youtube.com/results?search_query=class+9+science+fundamental+unit+of+life',
-        pdfTitle: 'Cell Notes',
-        pdfUrl: 'https://ncert.nic.in/textbook.php?iesc1=5-12',
-      },
-      {
-        id: 'science-chapter-6',
-        title: 'Chapter 6: Tissues',
-        videoTitle: 'Plant and Animal Tissues',
-        videoUrl: 'https://www.youtube.com/results?search_query=class+9+science+tissues',
-        pdfTitle: 'Tissues Notes',
-        pdfUrl: 'https://ncert.nic.in/textbook.php?iesc1=6-12',
-      },
-    ],
-    tests: [
-      { id: 'science-test-1', title: 'Test 1', chapterRange: 'Chapters 1-2', chapterIds: ['science-chapter-1', 'science-chapter-2'] },
-      { id: 'science-test-2', title: 'Test 2', chapterRange: 'Chapters 3-4', chapterIds: ['science-chapter-3', 'science-chapter-4'] },
-      { id: 'science-test-3', title: 'Test 3', chapterRange: 'Chapters 5-6', chapterIds: ['science-chapter-5', 'science-chapter-6'] },
-    ],
-  },
-  {
-    id: 'class-9-mathematics',
-    name: 'Mathematics',
-    chapters: [
-      {
-        id: 'math-chapter-1',
-        title: 'Chapter 1: Number Systems',
-        videoTitle: 'Rational and Irrational Numbers',
-        videoUrl: 'https://www.youtube.com/results?search_query=class+9+maths+number+systems',
-        pdfTitle: 'Number Systems Notes',
-        pdfUrl: 'https://ncert.nic.in/textbook.php?iemh1=1-12',
-      },
-      {
-        id: 'math-chapter-2',
-        title: 'Chapter 2: Polynomials',
-        videoTitle: 'Polynomial Identities',
-        videoUrl: 'https://www.youtube.com/results?search_query=class+9+maths+polynomials',
-        pdfTitle: 'Polynomials Notes',
-        pdfUrl: 'https://ncert.nic.in/textbook.php?iemh1=2-12',
-      },
-      {
-        id: 'math-chapter-3',
-        title: 'Chapter 3: Coordinate Geometry',
-        videoTitle: 'Plotting Points',
-        videoUrl: 'https://www.youtube.com/results?search_query=class+9+maths+coordinate+geometry',
-        pdfTitle: 'Coordinate Geometry Notes',
-        pdfUrl: 'https://ncert.nic.in/textbook.php?iemh1=3-12',
-      },
-      {
-        id: 'math-chapter-4',
-        title: 'Chapter 4: Linear Equations in Two Variables',
-        videoTitle: 'Linear Equation Graphs',
-        videoUrl: 'https://www.youtube.com/results?search_query=class+9+maths+linear+equations+two+variables',
-        pdfTitle: 'Linear Equations Notes',
-        pdfUrl: 'https://ncert.nic.in/textbook.php?iemh1=4-12',
-      },
-      {
-        id: 'math-chapter-5',
-        title: 'Chapter 5: Introduction to Euclid Geometry',
-        videoTitle: 'Euclid Axioms',
-        videoUrl: 'https://www.youtube.com/results?search_query=class+9+maths+euclid+geometry',
-        pdfTitle: 'Euclid Geometry Notes',
-        pdfUrl: 'https://ncert.nic.in/textbook.php?iemh1=5-12',
-      },
-      {
-        id: 'math-chapter-6',
-        title: 'Chapter 6: Lines and Angles',
-        videoTitle: 'Angles and Parallel Lines',
-        videoUrl: 'https://www.youtube.com/results?search_query=class+9+maths+lines+and+angles',
-        pdfTitle: 'Lines and Angles Notes',
-        pdfUrl: 'https://ncert.nic.in/textbook.php?iemh1=6-12',
-      },
-    ],
-    tests: [
-      { id: 'math-test-1', title: 'Test 1', chapterRange: 'Chapters 1-2', chapterIds: ['math-chapter-1', 'math-chapter-2'] },
-      { id: 'math-test-2', title: 'Test 2', chapterRange: 'Chapters 3-4', chapterIds: ['math-chapter-3', 'math-chapter-4'] },
-      { id: 'math-test-3', title: 'Test 3', chapterRange: 'Chapters 5-6', chapterIds: ['math-chapter-5', 'math-chapter-6'] },
-    ],
-  },
-]
-
-const courseCatalog: Record<string, CourseSubject[]> = {
-  'Class 8': [],
-  'Class 9': classNineSubjects,
-  'Class 10': [],
+  attemptNumber?: number
 }
 
 const questionSeeds = [
@@ -233,17 +104,26 @@ export const getTestById = (course: CourseSubject | null, testId: string) =>
   course?.tests.find((test) => test.id === testId) ?? null
 
 export const getQuestionsForTest = (course: CourseSubject, test: CourseTest): QuizQuestion[] => {
-  const questions = test.chapterIds.flatMap((chapterId) => {
-    const chapter = course.chapters.find((record) => record.id === chapterId)
-    const chapterTitle = chapter?.title.replace(/^Chapter \d+:\s*/, '') ?? chapterId
+  const pool = questionBank[test.id] ?? []
 
-    return questionSeeds.map(([prompt, answer, second, third, fourth], index) => ({
-      id: `${course.id}_${test.id}_${chapterId}_${index + 1}`,
-      prompt: `${chapterTitle}: ${prompt}`,
-      options: [answer, second, third, fourth],
-      answer,
-    }))
-  })
+  const questions: QuizQuestion[] = pool.length > 0
+    ? pool.map((q, index) => ({
+        id: `${course.id}_${test.id}_q${index + 1}`,
+        prompt: q.prompt,
+        options: [...q.options],
+        answer: q.answer,
+      }))
+    : test.chapterIds.flatMap((chapterId) => {
+        const chapter = course.chapters.find((record) => record.id === chapterId)
+        const chapterTitle = chapter?.title.replace(/^Chapter \d+:\s*/, '') ?? chapterId
+
+        return questionSeeds.map(([prompt, answer, second, third, fourth], index) => ({
+          id: `${course.id}_${test.id}_${chapterId}_${index + 1}`,
+          prompt: `${chapterTitle}: ${prompt}`,
+          options: [answer, second, third, fourth],
+          answer,
+        }))
+      })
 
   return shuffle(questions).slice(0, 10).map((question) => ({
     ...question,
@@ -267,15 +147,7 @@ export const submitQuizAttempt = async (values: SubmitQuizAttemptValues) => {
   const correct = attemptedAnswers.filter((answer) => answer.selectedAnswer === answer.correctAnswer).length
   const wrong = values.questions.length - correct
   const percentage = Math.round((correct / values.questions.length) * 100)
-  const countSnapshot = await getCountFromServer(
-    query(
-      collection(db, 'quizAttempts'),
-      where('studentId', '==', values.studentId),
-      where('courseId', '==', values.courseId),
-      where('testId', '==', values.testId),
-    ),
-  )
-  const attemptNumber = countSnapshot.data().count + 1
+  const attemptNumber = values.attemptNumber ?? 1
   const attemptId = `${values.studentId}_${values.courseId}_${values.testId}_${Date.now()}`
 
   await setDoc(doc(db, 'quizAttempts', attemptId), {

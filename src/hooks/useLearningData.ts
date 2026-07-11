@@ -49,11 +49,11 @@ const toMembership = (id: string, data: DocumentData): ClassMembership => ({
   joinedAt: data.joinedAt,
   lastActivityAt: data.lastActivityAt ?? null,
   schoolId: String(data.schoolId ?? ''),
-  studentEmail: typeof data.studentEmail === 'string' ? data.studentEmail : undefined,
+  studentEmail: String(data.studentEmail ?? ''),
   studentId: String(data.studentId ?? ''),
-  studentName: typeof data.studentName === 'string' ? data.studentName : undefined,
+  studentName: String(data.studentName ?? ''),
   teacherId: String(data.teacherId ?? ''),
-  teacherName: typeof data.teacherName === 'string' ? data.teacherName : undefined,
+  teacherName: String(data.teacherName ?? ''),
 })
 
 const toAttempt = (id: string, data: DocumentData): QuizAttemptRecord => ({
