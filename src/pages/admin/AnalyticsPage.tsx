@@ -1,5 +1,6 @@
 import { BarChart3, Building, CheckCircle2, Clock3, GraduationCap, Users } from 'lucide-react'
 import { StatCard } from '../../components/admin/StatCard'
+import { PageHeader } from '../../components/common/PageHeader'
 import { ErrorState } from '../../components/common/StateViews'
 import { useDashboardStats } from '../../hooks/useDashboardStats'
 
@@ -14,10 +15,7 @@ export function AnalyticsPage() {
 
   return (
     <main className="admin-content">
-      <div className="page-heading">
-        <p className="eyebrow">Realtime Analytics</p>
-        <h1>Website Analytics</h1>
-      </div>
+      <PageHeader eyebrow="Realtime Analytics" title="Website Analytics" />
 
       {firstError ? <ErrorState message={firstError} /> : null}
 
@@ -54,11 +52,19 @@ export function AnalyticsPage() {
         />
       </section>
 
-      <section className="chart-placeholder">
+      <section className="analytics-panel">
+        <div className="analytics-visual">
+          <span style={{ height: `${Math.max(stats.totalSchools.count, 1) * 10}px` }} />
+          <span style={{ height: `${Math.max(stats.pendingSchools.count, 1) * 10}px` }} />
+          <span style={{ height: `${Math.max(stats.approvedSchools.count, 1) * 10}px` }} />
+          <span style={{ height: `${Math.max(stats.students.count, 1) * 4}px` }} />
+          <span style={{ height: `${Math.max(stats.teachers.count, 1) * 4}px` }} />
+        </div>
         <div>
           <BarChart3 aria-hidden="true" />
-          <h2>Charts area</h2>
-          <p>Structured for future chart integration with realtime data.</p>
+          <p className="eyebrow">Realtime Snapshot</p>
+          <h2>Platform growth overview</h2>
+          <p>Counts update directly from the existing realtime dashboard sources.</p>
         </div>
       </section>
     </main>

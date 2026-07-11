@@ -1,5 +1,5 @@
 import { doc, onSnapshot } from 'firebase/firestore'
-import { CheckCircle2, Clock3 } from 'lucide-react'
+import { CheckCircle2, Clock3, RadioTower } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { db } from '../firebase/firebase'
@@ -134,6 +134,10 @@ export function ApprovalWaitingPage() {
         <h1>Registration Submitted Successfully</h1>
         <h2>{registration?.heading ?? 'Waiting for Approval'}</h2>
         <p>{registration?.message ?? 'This page will automatically continue once approved.'}</p>
+        <div className="live-status">
+          <RadioTower aria-hidden="true" />
+          Listening for realtime approval updates
+        </div>
         <div className="waiting-loader" aria-label="Waiting for approval">
           <span />
           <span />

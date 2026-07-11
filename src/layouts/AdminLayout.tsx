@@ -40,6 +40,7 @@ export function AdminLayout() {
         <NavLink className="admin-brand" to="/admin/dashboard">
           <span>SH</span>
           <strong>StudyHub</strong>
+          <small>Control Center</small>
         </NavLink>
         <nav>
           <NavLink to="/admin/dashboard">

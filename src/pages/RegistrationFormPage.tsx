@@ -1,4 +1,4 @@
-import { ArrowLeft, Eye, EyeOff, LoaderCircle } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, LoaderCircle } from 'lucide-react'
 import { useState, type ChangeEvent, type FormEvent } from 'react'
 import toast from 'react-hot-toast'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
@@ -173,6 +173,7 @@ export function RegistrationFormPage() {
         <div className="page-heading">
           <p className="eyebrow">{page.eyebrow}</p>
           <h1>{page.title}</h1>
+          <p className="panel-subtitle">Your account will be routed through the correct approval flow.</p>
         </div>
 
         <form className="login-form" onSubmit={onSubmit}>
@@ -253,6 +254,11 @@ export function RegistrationFormPage() {
           </label>
 
           <small>{passwordHelp}</small>
+
+          <div className="form-assurance">
+            <CheckCircle2 aria-hidden="true" />
+            No dashboard access changes until approval is complete.
+          </div>
 
           <button className="primary-button submit-button" disabled={submitting} type="submit">
             {submitting ? (

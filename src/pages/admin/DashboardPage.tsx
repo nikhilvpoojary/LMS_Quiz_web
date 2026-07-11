@@ -1,5 +1,6 @@
-import { Building2, GraduationCap, School, UserRoundCheck } from 'lucide-react'
+import { Activity, Building2, GraduationCap, School, ShieldCheck, UserRoundCheck } from 'lucide-react'
 import { StatCard } from '../../components/admin/StatCard'
+import { PageHeader } from '../../components/common/PageHeader'
 import { ErrorState } from '../../components/common/StateViews'
 import { useDashboardStats } from '../../hooks/useDashboardStats'
 
@@ -13,10 +14,7 @@ export function DashboardPage() {
 
   return (
     <main className="admin-content">
-      <div className="page-heading">
-        <p className="eyebrow">Realtime Overview</p>
-        <h1>Dashboard</h1>
-      </div>
+      <PageHeader eyebrow="Realtime Overview" title="Dashboard" />
 
       {firstError ? <ErrorState message={firstError} /> : null}
 
@@ -45,6 +43,25 @@ export function DashboardPage() {
           loading={stats.teachers.loading}
           value={stats.teachers.count}
         />
+      </section>
+
+      <section className="insight-grid">
+        <article className="insight-card">
+          <Activity aria-hidden="true" />
+          <div>
+            <p className="eyebrow">Operations</p>
+            <h2>Live request intake</h2>
+            <span>Pending schools, approved schools, students, and teachers stay synced from Firebase.</span>
+          </div>
+        </article>
+        <article className="insight-card">
+          <ShieldCheck aria-hidden="true" />
+          <div>
+            <p className="eyebrow">Access</p>
+            <h2>Approval gated workspaces</h2>
+            <span>Every role reaches the same dashboard routes with the existing protected access flow.</span>
+          </div>
+        </article>
       </section>
     </main>
   )

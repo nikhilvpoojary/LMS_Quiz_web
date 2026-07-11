@@ -1,5 +1,6 @@
 import { Check, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { PageHeader } from '../../components/common/PageHeader'
 import { EmptyState, ErrorState, SkeletonGrid } from '../../components/common/StateViews'
 import { useSchools } from '../../hooks/useSchools'
 import { approveSchool, rejectSchool } from '../../services/registration'
@@ -25,10 +26,7 @@ export function SchoolApprovalPage() {
 
   return (
     <main className="admin-content">
-      <div className="page-heading">
-        <p className="eyebrow">Realtime Queue</p>
-        <h1>School Approval Requests</h1>
-      </div>
+      <PageHeader eyebrow="Realtime Queue" title="School Approval Requests" />
 
       {loading ? <SkeletonGrid items={3} /> : null}
       {error ? <ErrorState message={error} /> : null}

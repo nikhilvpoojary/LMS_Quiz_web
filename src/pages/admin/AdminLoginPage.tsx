@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { signInWithEmailAndPassword } from 'firebase/auth'
-import { ArrowLeft, Eye, EyeOff, LockKeyhole } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
@@ -82,6 +82,7 @@ export function AdminLoginPage() {
           <div>
             <p className="eyebrow">StudyHub Login</p>
             <h1>Welcome back.</h1>
+            <p className="panel-subtitle">Continue to your approved workspace.</p>
           </div>
         </div>
 
@@ -125,6 +126,10 @@ export function AdminLoginPage() {
             {submitting ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+        <div className="trust-row">
+          <ShieldCheck aria-hidden="true" />
+          Role-based access is checked before every dashboard opens.
+        </div>
       </section>
     </main>
   )

@@ -462,7 +462,7 @@ function TeacherDashboard() {
         {!memberships.loading && studentRows.length === 0 ? <EmptyState message="No students have joined your classes yet." /> : null}
         {studentRows.length > 0 ? (
           <section className="table-card">
-            <header className="table-row student-row table-header-row" style={{ fontWeight: 'bold', background: 'rgba(0, 0, 0, 0.02)', borderBottom: '2px solid var(--line)' }}>
+            <header className="table-row student-row table-header-row">
               <div>Student</div>
               <div>Class</div>
               <div>Joined Date</div>
