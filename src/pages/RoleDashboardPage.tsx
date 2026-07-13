@@ -12,9 +12,13 @@ import {
   Check,
   Clock,
   Clipboard,
+  ClipboardList,
   Copy,
+  ChartColumn,
   FileText,
   GraduationCap,
+  IdCard,
+  LayoutDashboard,
   LogOut,
   Pencil,
   Plus,
@@ -24,6 +28,7 @@ import {
   Target,
   ToggleLeft,
   Trash2,
+  User,
   UserCheck,
   UserRoundCheck,
   Users,
@@ -31,12 +36,15 @@ import {
   FlaskRound,
   Calculator,
   ArrowRight,
+  Building2,
+  ChevronRight,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import toast from 'react-hot-toast'
 import { StatCard } from '../components/admin/StatCard'
 import { EmptyState, ErrorState, SkeletonGrid } from '../components/common/StateViews'
 import type { UserRole } from '../contexts/authContextValue'
+import '../styles/StudentDashboard.css'
 import { auth, db } from '../firebase/firebase'
 import {
   usePendingStudentRequests,
@@ -752,111 +760,166 @@ function StudentDashboard() {
 
 
 
-  // Common Header component inside each dashboard view
-  const renderDashboardHeader = (title: string, eyebrow: string) => (
-    <header className="school-dashboard-header">
-      <div className="school-logo large">
-        {studentProfile.record?.fullName.charAt(0).toUpperCase() ?? userProfile?.fullName.charAt(0).toUpperCase() ?? 'S'}
+  // Welcome card with current date
+  const renderWelcomeCard = () => {
+    const displayName = studentProfile.record?.fullName ?? userProfile?.fullName ?? 'Student'
+    const initial    = displayName.charAt(0).toUpperCase()
+    const studentId  = user?.uid ?? '—'
+    const schoolName = studentProfile.record?.schoolName ?? 'Not set'
+    const className  = joinedClass?.className ?? 'Not joined'
+
+    const now = new Date()
+    const dayName = now.toLocaleDateString('en-IN', { weekday: 'long' })
+    const fullDate = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+
+    return (
+      <div className="sdb-welcome-card glossy">
+        <div className="sdb-welcome-left">
+          <div className="sdb-avatar">{initial}</div>
+          <div>
+            <p className="sdb-welcome-greeting">Good day,</p>
+            <p className="sdb-welcome-name">{displayName}</p>
+            <div className="sdb-welcome-meta">
+              <span className="sdb-meta-item">
+                <IdCard />
+                <span className="sdb-meta-label">ID:</span>
+                <span className="sdb-meta-value">{studentId}</span>
+              </span>
+              <span className="sdb-meta-item">
+                <Building2 />
+                <span className="sdb-meta-label">School:</span>
+                <span className="sdb-meta-value">{schoolName}</span>
+              </span>
+              <span className="sdb-meta-item">
+                <BookOpen />
+                <span className="sdb-meta-label">Class:</span>
+                <span className="sdb-meta-value">{className}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="sdb-welcome-right">
+          <div className="sdb-page-date">
+            <span className="sdb-date-day">{dayName}</span>
+            <strong>{fullDate}</strong>
+          </div>
+          <button className="sdb-continue-btn" onClick={() => setActiveTab('courses')}>
+            Continue Learning <ChevronRight size={13} />
+          </button>
+        </div>
       </div>
-      <div className="school-dashboard-title">
-        <p className="eyebrow">{eyebrow}</p>
-        <h1>{title}</h1>
-        <dl>
-          <div>
-            <dt>Student ID</dt>
-            <dd>{user?.uid ?? 'Not available'}</dd>
-          </div>
-          <div>
-            <dt>School</dt>
-            <dd>{studentProfile.record?.schoolName ?? 'School'}</dd>
-          </div>
-          <div>
-            <dt>Class</dt>
-            <dd>{joinedClass?.className ?? 'Not joined'}</dd>
-          </div>
-          <div>
-            <dt>Teacher</dt>
-            <dd>{joinedClass?.teacherName ?? 'Not assigned'}</dd>
-          </div>
-        </dl>
-      </div>
-    </header>
-  )
+    )
+  }
 
   const firstError = studentProfile.error ?? memberships.error ?? attempts.error
 
   // Render Quiz Session (CBT Mode)
   if (quizSession && currentQuestion) {
     return (
-      <main className="school-dashboard">
-        <section className="dashboard-section quiz-section">
-          <div className="page-heading split-heading">
+      <div className="sdb-layout" style={{ gridTemplateColumns: '1fr' }}>
+        <main className="sdb-main" style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+          {/* Page header */}
+          <div className="sdb-page-header">
             <div>
-              <p className="eyebrow">{quizSession.course.name}</p>
-              <h2>{getTestById(quizSession.course, quizSession.testId)?.title ?? 'Practice Test'}</h2>
+              <h1 className="sdb-page-title">{getTestById(quizSession.course, quizSession.testId)?.title ?? 'Practice Test'}</h1>
+              <p className="sdb-page-sub">{quizSession.course.name}</p>
             </div>
-            <span className="timer-badge">{formatDuration(remainingSeconds)}</span>
-          </div>
-          
-          <div className="question-nav">
-            {preparedQuestions.map((question, index) => {
-              const isAnswered = Boolean(answers[question.id])
-              const isVisited = visitedQuestionIds.has(question.id)
-              const statusClass = isAnswered ? 'answered' : (isVisited ? 'unanswered' : 'not-visited')
-
-              return (
-                <button
-                  className={`${statusClass} ${index === currentQuestionIndex ? 'active' : ''}`}
-                  key={question.id}
-                  type="button"
-                  onClick={() => setCurrentQuestionIndex(index)}
-                >
-                  {index + 1}
-                </button>
-              )
-            })}
-          </div>
-
-          <article className="quiz-card">
-            <strong>Question {currentQuestionIndex + 1} of {preparedQuestions.length}</strong>
-            <h3>{currentQuestion.prompt}</h3>
-            <div className="option-grid">
-              {currentQuestion.options.map((option) => (
-                <button
-                  className={answers[currentQuestion.id] === option ? 'selected' : ''}
-                  key={option}
-                  type="button"
-                  onClick={() => setAnswers((current) => ({ ...current, [currentQuestion.id]: option }))}
-                >
-                  {option}
-                </button>
-              ))}
+            <div className="sdb-page-date">
+              <span className="sdb-date-day">Remaining Time</span>
+              <strong style={{ fontSize: '1.25rem', color: 'var(--sdb-danger)' }}>{formatDuration(remainingSeconds)}</strong>
             </div>
-          </article>
-
-          <div className="quiz-controls">
-            <button
-              className="secondary-icon-button"
-              disabled={currentQuestionIndex === 0}
-              type="button"
-              onClick={() => setCurrentQuestionIndex((index) => Math.max(0, index - 1))}
-            >
-              Previous
-            </button>
-            <button
-              className="secondary-icon-button"
-              disabled={currentQuestionIndex === preparedQuestions.length - 1}
-              type="button"
-              onClick={() => setCurrentQuestionIndex((index) => Math.min(preparedQuestions.length - 1, index + 1))}
-            >
-              Next
-            </button>
-            <button className="primary-button" disabled={submittingQuiz} type="button" onClick={() => void finishQuiz()}>
-              {submittingQuiz ? 'Submitting...' : 'Submit Test'}
-            </button>
           </div>
-        </section>
-      </main>
+
+          {/* Two column grid */}
+          <div className="sdb-quiz-grid">
+            {/* Left Column: Question & Controls */}
+            <div className="sdb-quiz-left">
+              <article className="sdb-card sdb-quiz-card">
+                <span className="sdb-quiz-card-header">Question {currentQuestionIndex + 1} of {preparedQuestions.length}</span>
+                <h3 className="sdb-quiz-prompt">{currentQuestion.prompt.replace(/^\[[^\]]+\]\s*/, '')}</h3>
+                <div className="sdb-option-grid">
+                  {currentQuestion.options.map((option, idx) => {
+                    const isSelected = answers[currentQuestion.id] === option
+                    const letter = String.fromCharCode(65 + idx) // A, B, C, D
+                    return (
+                      <button
+                        className={`sdb-option-btn ${isSelected ? 'selected' : ''}`}
+                        key={option}
+                        type="button"
+                        onClick={() => setAnswers((current) => ({ ...current, [currentQuestion.id]: option }))}
+                      >
+                        <span style={{ fontWeight: 600, marginRight: '10px', color: isSelected ? 'var(--sdb-primary)' : 'var(--sdb-muted)' }}>{letter}.</span>
+                        {option}
+                      </button>
+                    )
+                  })}
+                </div>
+              </article>
+
+              <div className="sdb-quiz-controls">
+                <button
+                  className="sdb-quiz-btn-secondary"
+                  disabled={currentQuestionIndex === 0}
+                  type="button"
+                  onClick={() => setCurrentQuestionIndex((index) => Math.max(0, index - 1))}
+                >
+                  Previous
+                </button>
+                <button
+                  className="sdb-quiz-btn-secondary"
+                  disabled={currentQuestionIndex === preparedQuestions.length - 1}
+                  type="button"
+                  onClick={() => setCurrentQuestionIndex((index) => Math.min(preparedQuestions.length - 1, index + 1))}
+                >
+                  Next
+                </button>
+                <button className="sdb-quiz-btn-primary" disabled={submittingQuiz} type="button" onClick={() => void finishQuiz()}>
+                  {submittingQuiz ? 'Submitting...' : 'Submit Test'}
+                </button>
+              </div>
+            </div>
+
+            {/* Right Column: Question Numbers Grid */}
+            <div className="sdb-quiz-right">
+              <div className="sdb-card sdb-nav-card">
+                <h4 className="sdb-nav-title">Questions</h4>
+                <div className="sdb-nav-grid">
+                  {preparedQuestions.map((question, index) => {
+                    const isAnswered = Boolean(answers[question.id])
+                    const isVisited = visitedQuestionIds.has(question.id)
+                    const statusClass = isAnswered ? 'answered' : (isVisited ? 'visited' : 'not-visited')
+
+                    return (
+                      <button
+                        className={`sdb-nav-btn ${statusClass} ${index === currentQuestionIndex ? 'active' : ''}`}
+                        key={question.id}
+                        type="button"
+                        onClick={() => setCurrentQuestionIndex(index)}
+                      >
+                        {index + 1}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="sdb-nav-legend">
+                  <div className="sdb-legend-item">
+                    <span className="sdb-legend-dot answered" />
+                    <span>Answered</span>
+                  </div>
+                  <div className="sdb-legend-item">
+                    <span className="sdb-legend-dot visited" />
+                    <span>Visited</span>
+                  </div>
+                  <div className="sdb-legend-item">
+                    <span className="sdb-legend-dot not-visited" />
+                    <span>Not Visited</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
     )
   }
 
@@ -865,15 +928,16 @@ function StudentDashboard() {
     if (reviewMode && reviewQuestions) {
       const activeReviewQuestion = reviewQuestions[currentQuestionIndex]
       return (
-        <main className="school-dashboard">
-          <section className="dashboard-section quiz-section">
-            <div className="page-heading split-heading">
+        <div className="sdb-layout" style={{ gridTemplateColumns: '1fr' }}>
+          <main className="sdb-main" style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+            {/* Page header */}
+            <div className="sdb-page-header">
               <div>
-                <p className="eyebrow">Review Answers</p>
-                <h2>Reviewing Test Performance</h2>
+                <h1 className="sdb-page-title">Review Answers</h1>
+                <p className="sdb-page-sub">Reviewing Test Performance</p>
               </div>
               <button 
-                className="secondary-icon-button" 
+                className="sdb-continue-btn" 
                 type="button" 
                 onClick={() => {
                   setReviewMode(false)
@@ -883,232 +947,485 @@ function StudentDashboard() {
                 Back to Results
               </button>
             </div>
-            
-            <div className="question-nav">
-              {reviewQuestions.map((question, index) => {
-                const userAnswer = answers[question.id] ?? ''
-                const isCorrect = userAnswer === question.answer
-                const statusClass = isCorrect ? 'review-correct' : 'review-wrong'
 
-                return (
+            <div className="sdb-quiz-grid">
+              {/* Left Column: Question Review */}
+              <div className="sdb-quiz-left">
+                {activeReviewQuestion && (
+                  <article className="sdb-card sdb-quiz-card">
+                    <span className="sdb-quiz-card-header">Question {currentQuestionIndex + 1} of {reviewQuestions.length}</span>
+                    <h3 className="sdb-quiz-prompt">{activeReviewQuestion.prompt.replace(/^\[[^\]]+\]\s*/, '')}</h3>
+                    <div className="sdb-option-grid">
+                      {activeReviewQuestion.options.map((option, idx) => {
+                        const userAnswer = answers[activeReviewQuestion.id] ?? ''
+                        const correctAnswer = activeReviewQuestion.answer
+                        const letter = String.fromCharCode(65 + idx) // A, B, C, D
+                        
+                        let optionClass = ''
+                        if (option === correctAnswer) {
+                          optionClass = 'correct'
+                        } else if (option === userAnswer && userAnswer !== correctAnswer) {
+                          optionClass = 'wrong'
+                        } else if (option === userAnswer) {
+                          optionClass = 'selected'
+                        }
+                        
+                        return (
+                          <button
+                            className={`sdb-option-btn-review ${optionClass}`}
+                            key={option}
+                            disabled
+                            type="button"
+                          >
+                            <div className="sdb-review-option-content">
+                              <span>
+                                <span style={{ fontWeight: 600, marginRight: '10px', opacity: 0.8 }}>{letter}.</span>
+                                {option}
+                              </span>
+                              {option === correctAnswer && <Check className="sdb-review-icon correct" />}
+                              {option === userAnswer && userAnswer !== correctAnswer && <X className="sdb-review-icon wrong" />}
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </article>
+                )}
+
+                <div className="sdb-quiz-controls">
                   <button
-                    className={`${statusClass} ${index === currentQuestionIndex ? 'active' : ''}`}
-                    key={question.id}
+                    className="sdb-quiz-btn-secondary"
+                    disabled={currentQuestionIndex === 0}
                     type="button"
-                    onClick={() => setCurrentQuestionIndex(index)}
+                    onClick={() => setCurrentQuestionIndex((index) => Math.max(0, index - 1))}
                   >
-                    {index + 1}
+                    Previous
                   </button>
-                )
-              })}
-            </div>
-
-            {activeReviewQuestion && (
-              <article className="quiz-card">
-                <strong>Question {currentQuestionIndex + 1} of {reviewQuestions.length}</strong>
-                <h3>{activeReviewQuestion.prompt}</h3>
-                <div className="option-grid">
-                  {activeReviewQuestion.options.map((option) => {
-                    const userAnswer = answers[activeReviewQuestion.id] ?? ''
-                    const correctAnswer = activeReviewQuestion.answer
-                    
-                    let optionClass = ''
-                    if (option === correctAnswer) {
-                      optionClass = 'correct-option'
-                    } else if (option === userAnswer && userAnswer !== correctAnswer) {
-                      optionClass = 'wrong-option'
-                    } else if (option === userAnswer) {
-                      optionClass = 'selected-option'
-                    }
-                    
-                    return (
-                      <button
-                        className={`option-btn-review ${optionClass}`}
-                        key={option}
-                        disabled
-                        type="button"
-                      >
-                        <div className="option-content-flex">
-                          <span>{option}</span>
-                          {option === correctAnswer && <Check className="correct-icon" aria-hidden="true" />}
-                          {option === userAnswer && userAnswer !== correctAnswer && <X className="wrong-icon" aria-hidden="true" />}
-                        </div>
-                      </button>
-                    )
-                  })}
+                  <button
+                    className="sdb-quiz-btn-secondary"
+                    disabled={currentQuestionIndex === reviewQuestions.length - 1}
+                    type="button"
+                    onClick={() => setCurrentQuestionIndex((index) => Math.min(reviewQuestions.length - 1, index + 1))}
+                  >
+                    Next
+                  </button>
                 </div>
-              </article>
-            )}
+              </div>
 
-            <div className="quiz-controls">
-              <button
-                className="secondary-icon-button"
-                disabled={currentQuestionIndex === 0}
-                type="button"
-                onClick={() => setCurrentQuestionIndex((index) => Math.max(0, index - 1))}
-              >
-                Previous
-              </button>
-              <button
-                className="secondary-icon-button"
-                disabled={currentQuestionIndex === reviewQuestions.length - 1}
-                type="button"
-                onClick={() => setCurrentQuestionIndex((index) => Math.min(reviewQuestions.length - 1, index + 1))}
-              >
-                Next
-              </button>
+              {/* Right Column: Question Numbers Grid */}
+              <div className="sdb-quiz-right">
+                <div className="sdb-card sdb-nav-card">
+                  <h4 className="sdb-nav-title">Questions</h4>
+                  <div className="sdb-nav-grid">
+                    {reviewQuestions.map((question, index) => {
+                      const userAnswer = answers[question.id] ?? ''
+                      const isCorrect = userAnswer === question.answer
+                      const statusClass = isCorrect ? 'correct' : 'wrong'
+
+                      return (
+                        <button
+                          className={`sdb-nav-btn review ${statusClass} ${index === currentQuestionIndex ? 'active' : ''}`}
+                          key={question.id}
+                          type="button"
+                          onClick={() => setCurrentQuestionIndex(index)}
+                        >
+                          {index + 1}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="sdb-nav-legend">
+                    <div className="sdb-legend-item">
+                      <span className="sdb-legend-dot correct" />
+                      <span>Correct</span>
+                    </div>
+                    <div className="sdb-legend-item">
+                      <span className="sdb-legend-dot wrong" />
+                      <span>Incorrect</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-          </section>
-        </main>
+          </main>
+        </div>
       )
     }
 
+    const passed = quizResult.percentage >= 60
     return (
-      <main className="school-dashboard">
-        <section className="dashboard-section">
-          <div className="page-heading">
-            <p className="eyebrow">Submission</p>
-            <h2>Test Results</h2>
-          </div>
-          
-          <div className="result-stats-card">
-            <Award style={{ width: '48px', height: '48px', margin: '0 auto', color: 'var(--brand)' }} />
-            <h3>Performance Summary</h3>
-            <div className="result-percentage-large">{quizResult.percentage}%</div>
-            <p>You scored {quizResult.score} out of {quizResult.score + quizResult.wrong} questions correctly.</p>
-          </div>
+      <div className="sdb-layout" style={{ gridTemplateColumns: '1fr' }}>
+        <main className="sdb-main">
+          <div className="sdb-results-container">
+            {/* Page header */}
+            <div className="sdb-page-header">
+              <div>
+                <h1 className="sdb-page-title">Test Results</h1>
+                <p className="sdb-page-sub">Performance review and scorecard</p>
+              </div>
+            </div>
 
-          <div className="stats-grid">
-            <StatCard icon={Check} label="Correct" loading={false} value={quizResult.correct} />
-            <StatCard icon={X} label="Wrong" loading={false} value={quizResult.wrong} />
-            <StatCard icon={Clock} label="Time Taken" loading={false} value={formatDuration(quizResult.durationSeconds)} />
-            <StatCard icon={Award} label="Attempt Number" loading={false} value={quizResult.attemptNumber ?? 1} />
-          </div>
+            {/* Scorecard Box */}
+            <div className="sdb-card sdb-score-card">
+              <div className={`sdb-score-circle ${passed ? 'pass' : 'fail'}`}>
+                {quizResult.percentage}%
+              </div>
+              <h3 className="sdb-results-title">{passed ? 'Congratulations!' : 'Keep Learning!'}</h3>
+              <p className="sdb-results-desc">
+                You answered {quizResult.score} out of {quizResult.score + quizResult.wrong} questions correctly.
+                {passed ? ' Excellent work on completing the quiz.' : ' Review your answers and try again to improve your score.'}
+              </p>
+            </div>
 
-          <div className="quiz-controls" style={{ marginTop: '24px', justifyContent: 'center' }}>
-            <button className="primary-button" type="button" onClick={() => { setReviewMode(true); setCurrentQuestionIndex(0); }}>
-              Review Answers
-            </button>
-            <button 
-              className="primary-button" 
-              type="button" 
-              style={{ backgroundColor: 'var(--success)' }}
-              onClick={() => {
-                if (lastQuizCourse && lastQuizTestId) {
-                  startQuiz(lastQuizCourse, lastQuizTestId)
-                }
-              }}
-            >
-              Retest
-            </button>
-            <button 
-              className="secondary-icon-button" 
-              type="button" 
-              onClick={() => {
-                setQuizResult(null)
-                setReviewQuestions(null)
-                setReviewMode(false)
-              }}
-            >
-              Back to Course
-            </button>
+            {/* Detailed stats grid */}
+            <div className="sdb-results-stats">
+              <div className="sdb-stat-card green">
+                <div className="sdb-stat-icon"><Check size={16} /></div>
+                <div className="sdb-stat-label">Correct Answers</div>
+                <div className="sdb-stat-value">{quizResult.correct}</div>
+                <div className="sdb-stat-hint">Valid answers</div>
+              </div>
+              <div className="sdb-stat-card amber">
+                <div className="sdb-stat-icon"><X size={16} /></div>
+                <div className="sdb-stat-label">Wrong Answers</div>
+                <div className="sdb-stat-value">{quizResult.wrong}</div>
+                <div className="sdb-stat-hint">Incorrect options</div>
+              </div>
+              <div className="sdb-stat-card blue">
+                <div className="sdb-stat-icon"><Clock size={16} /></div>
+                <div className="sdb-stat-label">Time Taken</div>
+                <div className="sdb-stat-value">{formatDuration(quizResult.durationSeconds)}</div>
+                <div className="sdb-stat-hint">Total test duration</div>
+              </div>
+              <div className="sdb-stat-card indigo">
+                <div className="sdb-stat-icon"><Award size={16} /></div>
+                <div className="sdb-stat-label">Attempt Number</div>
+                <div className="sdb-stat-value">{quizResult.attemptNumber ?? 1}</div>
+                <div className="sdb-stat-hint">Attempts recorded</div>
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div className="sdb-results-actions">
+              <button 
+                className="sdb-quiz-btn-primary" 
+                type="button" 
+                onClick={() => { setReviewMode(true); setCurrentQuestionIndex(0); }}
+              >
+                Review Answers
+              </button>
+              <button 
+                className="sdb-quiz-btn-secondary" 
+                type="button" 
+                onClick={() => {
+                  if (lastQuizCourse && lastQuizTestId) {
+                    startQuiz(lastQuizCourse, lastQuizTestId)
+                  }
+                }}
+              >
+                Retest
+              </button>
+              <button 
+                className="sdb-quiz-btn-secondary" 
+                type="button" 
+                onClick={() => {
+                  setQuizResult(null)
+                  setReviewQuestions(null)
+                  setReviewMode(false)
+                }}
+              >
+                Back to Course
+              </button>
+            </div>
           </div>
-        </section>
-      </main>
+        </main>
+      </div>
     )
   }
 
   return (
-    <div className="student-dashboard-layout">
-      {/* Sidebar Navigation */}
-      <aside className="student-sidebar">
-        <div className="student-sidebar-brand">
-          <GraduationCap />
-          <span>StudyHub</span>
+    <div className="sdb-layout">
+
+      {/* ─── Sidebar ─── */}
+      <aside className="sdb-sidebar">
+        <div className="sdb-sidebar-inner">
+          {/* Brand */}
+          <div className="sdb-brand">
+            <div className="sdb-brand-icon"><GraduationCap /></div>
+            <span className="sdb-brand-name">StudyHub</span>
+          </div>
+
+          <span className="sdb-nav-label">Navigation</span>
+
+          {/* Nav items */}
+          <nav className="sdb-nav">
+            <button
+              className={`sdb-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('dashboard'); setQuizResult(null); setReviewQuestions(null) }}
+            >
+              <LayoutDashboard size={16} /> Dashboard
+            </button>
+            <button
+              className={`sdb-nav-item ${activeTab === 'courses' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('courses'); setQuizResult(null); setReviewQuestions(null) }}
+            >
+              <BookOpen size={16} /> My Courses
+            </button>
+            <button
+              className={`sdb-nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('analytics'); setQuizResult(null); setReviewQuestions(null) }}
+            >
+              <ChartColumn size={16} /> Analytics
+            </button>
+            <button
+              className={`sdb-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('profile'); setQuizResult(null); setReviewQuestions(null) }}
+            >
+              <User size={16} /> Profile
+            </button>
+          </nav>
+
+          {/* Footer logout */}
+          <div className="sdb-sidebar-footer">
+            <button className="sdb-logout-btn" onClick={handleLogout}>
+              <LogOut size={16} /> Logout
+            </button>
+          </div>
         </div>
-        <nav className="student-sidebar-menu">
-          <button
-            className={`menu-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveTab('dashboard')
-              setQuizResult(null)
-              setReviewQuestions(null)
-            }}
-          >
-            <School />
-            Dashboard
-          </button>
-          <button
-            className={`menu-item ${activeTab === 'courses' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveTab('courses')
-              setQuizResult(null)
-              setReviewQuestions(null)
-            }}
-          >
-            <BookOpen />
-            My Courses
-          </button>
-          <button
-            className={`menu-item ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveTab('analytics')
-              setQuizResult(null)
-              setReviewQuestions(null)
-            }}
-          >
-            <BarChart3 />
-            Analytics
-          </button>
-          <button
-            className={`menu-item ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveTab('profile')
-              setQuizResult(null)
-              setReviewQuestions(null)
-            }}
-          >
-            <Clipboard />
-            Profile
-          </button>
-        </nav>
-        <button className="sidebar-logout" onClick={handleLogout}>
-          <LogOut />
-          Logout
-        </button>
       </aside>
 
-      {/* Main content pane */}
-      <main className="student-main-content school-dashboard">
+      {/* ─── Main Content ─── */}
+      <main className="sdb-main">
         {firstError ? <ErrorState message={firstError} /> : null}
 
-        {/* 1. Dashboard Tab */}
+        {/* ─── 1. Dashboard Tab ─── */}
         {activeTab === 'dashboard' && (
           <>
-            {renderDashboardHeader(studentProfile.record?.fullName ?? userProfile?.fullName ?? 'Student', 'Student Dashboard')}
+            {/* Page header */}
+            <div className="sdb-page-header">
+              <div>
+                <h1 className="sdb-page-title">Dashboard</h1>
+                <p className="sdb-page-sub">Overview of your learning progress</p>
+              </div>
+            </div>
 
-            <section className="stats-grid">
-              <StatCard icon={Target} label="Overall Progress" loading={attempts.loading} value={`${completionPercentage}%`} />
-              <StatCard icon={BookOpen} label="Tests Completed" loading={attempts.loading} value={new Set(attempts.records.map((attempt) => `${attempt.courseId}_${attempt.testId}`)).size} />
-              <StatCard icon={BarChart3} label="Average Score" loading={attempts.loading} value={`${averageScore}%`} />
-              <StatCard icon={Check} label="Attendance" loading={false} value="Future" />
-            </section>
+            {/* Welcome card */}
+            {renderWelcomeCard()}
 
-            <section className="dashboard-section">
-              <h2>Quick Actions</h2>
-              <div className="course-grid">
-                <button className="course-card active" onClick={() => setActiveTab('courses')}>
-                  <BookOpen />
-                  <strong>Browse Courses</strong>
-                  <span>Access classes, video lectures, notes, and tests</span>
+            {/* Stats */}
+            <div className="sdb-stats-row">
+              <div className="sdb-stat-card indigo">
+                <div className="sdb-stat-icon"><Target size={16} /></div>
+                <div className="sdb-stat-label">Overall Progress</div>
+                <div className="sdb-stat-value">{completionPercentage}%</div>
+                <div className="sdb-stat-hint">Course completion rate</div>
+              </div>
+              <div className="sdb-stat-card blue">
+                <div className="sdb-stat-icon"><ClipboardList size={16} /></div>
+                <div className="sdb-stat-label">Tests Completed</div>
+                <div className="sdb-stat-value">
+                  {new Set(attempts.records.map((a) => `${a.courseId}_${a.testId}`)).size}
+                </div>
+                <div className="sdb-stat-hint">Unique tests attempted</div>
+              </div>
+              <div className="sdb-stat-card green">
+                <div className="sdb-stat-icon"><ChartColumn size={16} /></div>
+                <div className="sdb-stat-label">Average Score</div>
+                <div className="sdb-stat-value">{averageScore}%</div>
+                <div className="sdb-stat-hint">{attempts.records.length > 0 ? `Best: ${highestScore}%` : 'No tests yet'}</div>
+              </div>
+              <div className="sdb-stat-card amber">
+                <div className="sdb-stat-icon"><Check size={16} /></div>
+                <div className="sdb-stat-label">Attendance</div>
+                <div className="sdb-stat-value">—</div>
+                <div className="sdb-stat-hint">Coming soon</div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div>
+              <div className="sdb-section-hd">
+                <span className="sdb-section-title"><LayoutDashboard size={15} /> Quick Actions</span>
+              </div>
+              <div className="sdb-actions-grid">
+                <button className="sdb-action-card indigo" onClick={() => setActiveTab('courses')}>
+                  <div className="sdb-action-icon-wrap"><BookOpen size={16} /></div>
+                  <p className="sdb-action-title">Browse Courses</p>
+                  <p className="sdb-action-desc">Access video lectures, notes, and tests</p>
+                  <span className="sdb-action-arrow"><ArrowRight size={13} /></span>
                 </button>
-                <button className="course-card active" onClick={() => setActiveTab('analytics')}>
-                  <BarChart3 />
-                  <strong>View Analytics</strong>
-                  <span>Track test performances and subject-wise averages</span>
+                <button className="sdb-action-card blue" onClick={() => setActiveTab('analytics')}>
+                  <div className="sdb-action-icon-wrap"><ChartColumn size={16} /></div>
+                  <p className="sdb-action-title">View Analytics</p>
+                  <p className="sdb-action-desc">Track performances and subject averages</p>
+                  <span className="sdb-action-arrow"><ArrowRight size={13} /></span>
+                </button>
+                <button className="sdb-action-card green" onClick={() => setActiveTab('courses')}>
+                  <div className="sdb-action-icon-wrap"><PlayCircle size={16} /></div>
+                  <p className="sdb-action-title">Practice Tests</p>
+                  <p className="sdb-action-desc">Take tests and sharpen your skills</p>
+                  <span className="sdb-action-arrow"><ArrowRight size={13} /></span>
+                </button>
+                <button className="sdb-action-card amber" onClick={() => setActiveTab('profile')}>
+                  <div className="sdb-action-icon-wrap"><User size={16} /></div>
+                  <p className="sdb-action-title">My Profile</p>
+                  <p className="sdb-action-desc">View and manage account details</p>
+                  <span className="sdb-action-arrow"><ArrowRight size={13} /></span>
                 </button>
               </div>
-            </section>
+            </div>
+
+            {/* Recent Courses + Upcoming Tests */}
+            <div className="sdb-2col">
+
+              {/* Recent Courses */}
+              <div className="sdb-card">
+                <div className="sdb-section-hd">
+                  <span className="sdb-section-title"><BookOpen size={15} /> Recent Courses</span>
+                  <button className="sdb-view-all-btn" onClick={() => setActiveTab('courses')}>
+                    View all <ChevronRight size={12} />
+                  </button>
+                </div>
+                {courses.length === 0 ? (
+                  <div className="sdb-empty">
+                    <div className="sdb-empty-icon"><BookOpen size={18} /></div>
+                    <p className="sdb-empty-title">No courses yet</p>
+                    <p className="sdb-empty-desc">Join a class to access your courses.</p>
+                    <button className="sdb-empty-action-btn" onClick={() => setActiveTab('profile')}>Join a Class</button>
+                  </div>
+                ) : (
+                  <div className="sdb-course-list">
+                    {courses.slice(0, 4).map((course, i) => {
+                      const colors = ['#4F46E5','#3B82F6','#22C55E','#F59E0B']
+                      const pct = Math.round(
+                        (attempts.records.filter(a => a.courseId === course.id).length /
+                        Math.max(1, course.tests?.length ?? 1)) * 100
+                      )
+                      return (
+                        <div key={course.id} className="sdb-course-item">
+                          <div className="sdb-course-dot" style={{ background: colors[i % colors.length] }} />
+                          <div className="sdb-course-info">
+                            <div className="sdb-course-name">{course.name}</div>
+                            <div className="sdb-course-sub">{course.tests?.length ?? 0} tests available</div>
+                          </div>
+                          <div className="sdb-progress-bar-track">
+                            <div className="sdb-progress-bar-fill" style={{ width: `${Math.max(2, pct)}%` }} />
+                          </div>
+                          <button className="sdb-continue-mini-btn" onClick={() => { setActiveTab('courses') }}>
+                            Continue
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Upcoming Tests */}
+              <div className="sdb-card">
+                <div className="sdb-section-hd">
+                  <span className="sdb-section-title"><ClipboardList size={15} /> Upcoming Tests</span>
+                </div>
+                {courses.length === 0 ? (
+                  <div className="sdb-empty">
+                    <div className="sdb-empty-icon"><ClipboardList size={18} /></div>
+                    <p className="sdb-empty-title">No upcoming tests</p>
+                    <p className="sdb-empty-desc">Join a class to see scheduled tests.</p>
+                  </div>
+                ) : (
+                  <div className="sdb-tests-list">
+                    {courses.slice(0, 3).flatMap(c =>
+                      (c.tests ?? []).slice(0, 2).map(t => ({ course: c, test: t }))
+                    ).slice(0, 4).map(({ course, test }, i) => {
+                      const attempted = attempts.records.some(a => a.courseId === course.id && a.testId === test.id)
+                      return (
+                        <div key={`${course.id}-${test.id}`} className="sdb-test-item">
+                          <div className="sdb-test-icon"><FileText size={15} /></div>
+                          <div className="sdb-test-info">
+                            <div className="sdb-test-name">{test.title}</div>
+                            <div className="sdb-test-sub">
+                              <span>{course.name}</span>
+                            </div>
+                          </div>
+                          <span className={`sdb-test-badge ${attempted ? 'green' : 'blue'}`}>
+                            {attempted ? 'Done' : 'Pending'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Recent Activity + Learning Progress */}
+            <div className="sdb-2col">
+
+              {/* Recent Activity */}
+              <div className="sdb-card">
+                <div className="sdb-section-hd">
+                  <span className="sdb-section-title"><Clock size={15} /> Recent Activity</span>
+                  {attempts.records.length > 0 && (
+                    <button className="sdb-view-all-btn" onClick={() => setActiveTab('analytics')}>
+                      View all <ChevronRight size={12} />
+                    </button>
+                  )}
+                </div>
+                {attempts.records.length === 0 ? (
+                  <div className="sdb-empty">
+                    <div className="sdb-empty-icon"><Clock size={18} /></div>
+                    <p className="sdb-empty-title">No activity yet</p>
+                    <p className="sdb-empty-desc">Complete a test to see your activity here.</p>
+                  </div>
+                ) : (
+                  <div className="sdb-activity-list">
+                    {attempts.records.slice(0, 5).map((attempt) => {
+                      const passed = attempt.percentage >= 60
+                      return (
+                        <div key={attempt.id} className="sdb-activity-item">
+                          <div className={`sdb-activity-dot ${passed ? 'pass' : 'fail'}`} />
+                          <div className="sdb-activity-content">
+                            <div className="sdb-activity-text">
+                              <strong>{attempt.testTitle ?? 'Test'}</strong> — {attempt.subject}
+                            </div>
+                            <div className="sdb-activity-time">
+                              {attempt.submittedAt?.toDate?.().toLocaleDateString('en-IN', { dateStyle: 'medium' }) ?? 'Recent'}
+                            </div>
+                          </div>
+                          <div className={`sdb-activity-score ${passed ? 'pass' : 'fail'}`}>{attempt.percentage}%</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Learning Progress */}
+              <div className="sdb-card">
+                <div className="sdb-section-hd">
+                  <span className="sdb-section-title"><ChartColumn size={15} /> Learning Progress</span>
+                </div>
+                {subjectAverages.length === 0 ? (
+                  <div className="sdb-empty">
+                    <div className="sdb-empty-icon"><ChartColumn size={18} /></div>
+                    <p className="sdb-empty-title">No data yet</p>
+                    <p className="sdb-empty-desc">Complete tests to see subject-wise progress.</p>
+                  </div>
+                ) : (
+                  <div className="sdb-progress-bars">
+                    {subjectAverages.map((item) => (
+                      <div key={item.subject} className="sdb-progress-row">
+                        <div className="sdb-progress-subject">{item.subject}</div>
+                        <div className="sdb-progress-track">
+                          <div className="sdb-progress-fill" style={{ width: `${Math.round(item.average)}%` }} />
+                        </div>
+                        <div className="sdb-progress-pct">{Math.round(item.average)}%</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </>
         )}
 
@@ -1118,55 +1435,65 @@ function StudentDashboard() {
             {/* Level 1: Categories View */}
             {!selectedCategory && (
               <>
-                <div className="page-heading">
-                  <p className="eyebrow">My Courses</p>
-                  <h2>Learning Categories</h2>
-                  <p className="muted">Select a category to explore topics and activities</p>
+                <div className="sdb-page-header">
+                  <div>
+                    <h1 className="sdb-page-title">Learning Categories</h1>
+                    <p className="sdb-page-sub">Select a category to explore topics and activities</p>
+                  </div>
                 </div>
 
-                <div className="course-grid">
-                  <article className="category-card prastuti-theme" onClick={() => setSelectedCategory('prastuti')}>
-                    <div className="category-card-header">
-                      <div className="category-card-badges">
-                        <span className="category-badge">2 Subjects</span>
-                        <span className="category-badge">Classes 8-10</span>
+                <div className="sdb-actions-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+                  <article className="sdb-course-overview-card indigo-theme" onClick={() => setSelectedCategory('prastuti')}>
+                    <div className="sdb-overview-header">
+                      <div className="sdb-overview-badges">
+                        <span className="sdb-overview-badge primary">2 Subjects</span>
+                        <span className="sdb-overview-badge">Classes 8-10</span>
                       </div>
-                      <div className="category-card-icon">
+                      <div className="sdb-overview-icon-wrap">
                         <BookOpen />
                       </div>
                     </div>
-                    <div className="category-card-body">
-                      <h3>Prasthuthi</h3>
+                    <div className="sdb-overview-body">
+                      <h3>
+                        Prasthuthi
+                        <span className="sdb-overview-arrow"><ArrowRight size={16} /></span>
+                      </h3>
                       <p>Comprehensive mathematics and science curriculum for classes 8-10</p>
                     </div>
                   </article>
 
-                  <article className="category-card anubhav-theme" onClick={() => setSelectedCategory('anubhav')}>
-                    <div className="category-card-header">
-                      <div className="category-card-badges">
-                        <span className="category-badge">Coming Soon</span>
+                  <article className="sdb-course-overview-card orange-theme" onClick={() => setSelectedCategory('anubhav')}>
+                    <div className="sdb-overview-header">
+                      <div className="sdb-overview-badges">
+                        <span className="sdb-overview-badge">Coming Soon</span>
                       </div>
-                      <div className="category-card-icon">
+                      <div className="sdb-overview-icon-wrap">
                         <Target />
                       </div>
                     </div>
-                    <div className="category-card-body">
-                      <h3>Anubhav</h3>
+                    <div className="sdb-overview-body">
+                      <h3>
+                        Anubhav
+                        <span className="sdb-overview-arrow"><ArrowRight size={16} /></span>
+                      </h3>
                       <p>Hands-on experiential learning activities through practical exploration</p>
                     </div>
                   </article>
 
-                  <article className="category-card geomagic-theme" onClick={() => setSelectedCategory('geomagic')}>
-                    <div className="category-card-header">
-                      <div className="category-card-badges">
-                        <span className="category-badge">Coming Soon</span>
+                  <article className="sdb-course-overview-card blue-theme" onClick={() => setSelectedCategory('geomagic')}>
+                    <div className="sdb-overview-header">
+                      <div className="sdb-overview-badges">
+                        <span className="sdb-overview-badge">Coming Soon</span>
                       </div>
-                      <div className="category-card-icon">
+                      <div className="sdb-overview-icon-wrap">
                         <School />
                       </div>
                     </div>
-                    <div className="category-card-body">
-                      <h3>Geomagic</h3>
+                    <div className="sdb-overview-body">
+                      <h3>
+                        Geomagic
+                        <span className="sdb-overview-arrow"><ArrowRight size={16} /></span>
+                      </h3>
                       <p>Geometric concepts and visual mathematics through interactive activities</p>
                     </div>
                   </article>
@@ -1177,51 +1504,53 @@ function StudentDashboard() {
             {/* Level 2: Class view within selected category */}
             {selectedCategory === 'prastuti' && !selectedClass && (
               <>
-                <div className="breadcrumb-nav">
+                <div className="sdb-breadcrumb-nav">
                   <button onClick={() => setSelectedCategory(null)}>Categories</button>
                   <span>/</span>
                   <span>Prasthuthi</span>
                 </div>
 
-                <div className="page-heading split-heading">
+                <div className="sdb-page-header">
                   <div>
-                    <p className="eyebrow">Prasthuthi</p>
-                    <h2>Browse Class</h2>
-                    <p className="muted">Choose a class to start learning</p>
+                    <h1 className="sdb-page-title">Browse Class</h1>
+                    <p className="sdb-page-sub">Choose a class to start learning</p>
                   </div>
-                  <button className="secondary-icon-button" onClick={() => setSelectedCategory(null)}>
+                  <button className="sdb-quiz-btn-secondary" onClick={() => setSelectedCategory(null)}>
                     Back to Categories
                   </button>
                 </div>
 
                 {!joinedClass && !memberships.loading ? (
-                  <div className="state-panel">
-                    <School className="muted-icon" />
+                  <div className="sdb-state-panel">
+                    <div className="sdb-state-icon"><School /></div>
                     <h3>Not Joined Any Class</h3>
                     <p>Please go to the Profile section and join a class using your Class ID to unlock courses.</p>
-                    <button className="primary-button" onClick={() => setActiveTab('profile')}>
+                    <button className="sdb-empty-action-btn" onClick={() => setActiveTab('profile')}>
                       Go to Profile
                     </button>
                   </div>
                 ) : null}
 
                 {joinedClass && (
-                  <div className="course-grid">
+                  <div className="sdb-actions-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
                     <article 
-                      className="category-card prastuti-theme" 
+                      className="sdb-course-overview-card green-theme" 
                       onClick={() => setSelectedClass(joinedClass.className)}
                     >
-                      <div className="category-card-header">
-                        <div className="category-card-badges">
-                          <span className="category-badge">Joined</span>
-                          <span className="category-badge">Active</span>
+                      <div className="sdb-overview-header">
+                        <div className="sdb-overview-badges">
+                          <span className="sdb-overview-badge primary">Joined</span>
+                          <span className="sdb-overview-badge">Active</span>
                         </div>
-                        <div className="category-card-icon">
+                        <div className="sdb-overview-icon-wrap">
                           <School />
                         </div>
                       </div>
-                      <div className="category-card-body">
-                        <h3>{joinedClass.className}</h3>
+                      <div className="sdb-overview-body">
+                        <h3>
+                          {joinedClass.className}
+                          <span className="sdb-overview-arrow"><ArrowRight size={16} /></span>
+                        </h3>
                         <p>Access your mathematics and science courses, video contents, PDFs, and tests.</p>
                       </div>
                     </article>
@@ -1233,16 +1562,16 @@ function StudentDashboard() {
             {/* Coming Soon views for unimplemented categories */}
             {(selectedCategory === 'anubhav' || selectedCategory === 'geomagic') && (
               <>
-                <div className="breadcrumb-nav">
+                <div className="sdb-breadcrumb-nav">
                   <button onClick={() => setSelectedCategory(null)}>Categories</button>
                   <span>/</span>
                   <span>{selectedCategory === 'anubhav' ? 'Anubhav' : 'Geomagic'}</span>
                 </div>
-                <div className="state-panel">
-                  <Target className="muted-icon" />
+                <div className="sdb-state-panel">
+                  <div className="sdb-state-icon"><Target /></div>
                   <h3>{selectedCategory === 'anubhav' ? 'Anubhav' : 'Geomagic'} is Coming Soon</h3>
                   <p>We are actively working on this learning category. Please check back later!</p>
-                  <button className="primary-button" onClick={() => setSelectedCategory(null)}>
+                  <button className="sdb-empty-action-btn" onClick={() => setSelectedCategory(null)}>
                     Back to Categories
                   </button>
                 </div>
@@ -1252,7 +1581,7 @@ function StudentDashboard() {
             {/* Level 3: Subject view for the selected class */}
             {selectedCategory === 'prastuti' && selectedClass && !selectedCourseId && (
               <>
-                <div className="breadcrumb-nav">
+                <div className="sdb-breadcrumb-nav">
                   <button onClick={() => setSelectedCategory(null)}>Categories</button>
                   <span>/</span>
                   <button onClick={() => setSelectedClass(null)}>Prasthuthi</button>
@@ -1260,24 +1589,27 @@ function StudentDashboard() {
                   <span>{selectedClass}</span>
                 </div>
 
-                <div className="page-heading split-heading">
+                <div className="sdb-page-header">
                   <div>
-                    <p className="eyebrow">{selectedClass}</p>
-                    <h2>Browse Subjects</h2>
-                    <p className="muted">Choose a subject to explore chapters and tests</p>
+                    <h1 className="sdb-page-title">Browse Subjects</h1>
+                    <p className="sdb-page-sub">Choose a subject to explore chapters and tests</p>
                   </div>
-                  <button className="secondary-icon-button" onClick={() => setSelectedClass(null)}>
+                  <button className="sdb-quiz-btn-secondary" onClick={() => setSelectedClass(null)}>
                     Back to Class list
                   </button>
                 </div>
 
                 {courses.length === 0 ? (
-                  <EmptyState message="Courses for this class are coming soon." />
+                  <div className="sdb-state-panel">
+                    <div className="sdb-state-icon"><BookOpen /></div>
+                    <h3>No subjects found</h3>
+                    <p>Courses for this class are coming soon.</p>
+                  </div>
                 ) : (
-                  <div className="course-grid">
+                  <div className="sdb-actions-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
                     {courses.map((course) => {
                       const isScience = course.name.toLowerCase().includes('science')
-                      const cardThemeClass = isScience ? 'prastuti-theme' : 'geomagic-theme'
+                      const cardThemeClass = isScience ? 'blue-theme' : 'indigo-theme'
                       const IconComponent = isScience ? FlaskRound : Calculator
                       const badgeLabel = isScience ? '35 Videos' : '43 Videos'
                       const description = isScience 
@@ -1286,26 +1618,25 @@ function StudentDashboard() {
                       
                       return (
                         <article 
-                          className={`category-card ${cardThemeClass}`} 
+                          className={`sdb-course-overview-card ${cardThemeClass}`} 
                           key={course.id}
-                          style={{ cursor: 'pointer' }}
                           onClick={() => setSelectedCourseId(course.id)}
                         >
-                          <div className="category-card-header">
-                            <div className="category-card-badges">
-                              <span className="category-badge">3 Classes</span>
-                              <span className="category-badge">{badgeLabel}</span>
+                          <div className="sdb-overview-header">
+                            <div className="sdb-overview-badges">
+                              <span className="sdb-overview-badge">3 Classes</span>
+                              <span className="sdb-overview-badge">{badgeLabel}</span>
                             </div>
-                            <div className="category-card-icon">
+                            <div className="sdb-overview-icon-wrap">
                               <IconComponent />
                             </div>
                           </div>
-                          <div className="category-card-body">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                              <h3 style={{ margin: 0 }}>{course.name === 'Mathematics' ? 'Maths' : course.name}</h3>
-                              <ArrowRight style={{ color: 'var(--brand)', width: '20px', height: '20px' }} />
-                            </div>
-                            <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>{description}</p>
+                          <div className="sdb-overview-body">
+                            <h3>
+                              {course.name === 'Mathematics' ? 'Maths' : course.name}
+                              <span className="sdb-overview-arrow"><ArrowRight size={16} /></span>
+                            </h3>
+                            <p>{description}</p>
                           </div>
                         </article>
                       )
@@ -1318,7 +1649,7 @@ function StudentDashboard() {
             {/* Level 4: Chapter View for the selected course/subject */}
             {selectedCategory === 'prastuti' && selectedClass && selectedCourseId && selectedCourse && (
               <>
-                <div className="breadcrumb-nav">
+                <div className="sdb-breadcrumb-nav">
                   <button onClick={() => setSelectedCategory(null)}>Categories</button>
                   <span>/</span>
                   <button onClick={() => setSelectedClass(null)}>Prasthuthi</button>
@@ -1328,31 +1659,31 @@ function StudentDashboard() {
                   <span>{selectedCourse.name}</span>
                 </div>
 
-                <div className="page-heading split-heading">
+                <div className="sdb-page-header">
                   <div>
-                    <p className="eyebrow">{selectedClass} · Subject Page</p>
-                    <h2>{selectedCourse.name}</h2>
+                    <h1 className="sdb-page-title">{selectedCourse.name}</h1>
+                    <p className="sdb-page-sub">{selectedClass} · Course Content</p>
                   </div>
-                  <button className="secondary-icon-button" onClick={() => setSelectedCourseId('')}>
+                  <button className="sdb-quiz-btn-secondary" onClick={() => setSelectedCourseId('')}>
                     Back to Subjects
                   </button>
                 </div>
 
-                <div className="subject-tabs">
+                <div className="sdb-tabs">
                   <button 
-                    className={`subject-tab-btn ${activeSubjectTab === 'videos' ? 'active' : ''}`}
+                    className={`sdb-tab-btn ${activeSubjectTab === 'videos' ? 'active' : ''}`}
                     onClick={() => setActiveSubjectTab('videos')}
                   >
                     Videos
                   </button>
                   <button 
-                    className={`subject-tab-btn ${activeSubjectTab === 'materials' ? 'active' : ''}`}
+                    className={`sdb-tab-btn ${activeSubjectTab === 'materials' ? 'active' : ''}`}
                     onClick={() => setActiveSubjectTab('materials')}
                   >
                     Study Material
                   </button>
                   <button 
-                    className={`subject-tab-btn ${activeSubjectTab === 'tests' ? 'active' : ''}`}
+                    className={`sdb-tab-btn ${activeSubjectTab === 'tests' ? 'active' : ''}`}
                     onClick={() => setActiveSubjectTab('tests')}
                   >
                     Tests
@@ -1360,25 +1691,27 @@ function StudentDashboard() {
                 </div>
 
                 {activeSubjectTab === 'videos' && (
-                  <div className="course-grid">
+                  <div className="sdb-chapter-grid">
                     {selectedCourse.chapters.map((chapter) => (
-                      <article className="category-card" key={chapter.id}>
-                        <div className="category-card-header" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <PlayCircle style={{ width: '40px', height: '40px', color: '#fff' }} />
+                      <article className="sdb-chapter-card" key={chapter.id}>
+                        <div className="sdb-chapter-card-top video">
+                          <div className="sdb-chapter-card-icon">
+                            <PlayCircle />
+                          </div>
                         </div>
-                        <div className="category-card-body" style={{ padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '140px' }}>
-                          <div>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--muted)', fontWeight: 600 }}>{chapter.title.split(':')[0]}</span>
-                            <h4 style={{ margin: '4px 0 0 0', fontSize: '0.95rem', fontWeight: 700, lineHeight: '1.3' }}>{chapter.videoTitle}</h4>
+                        <div className="sdb-chapter-card-body">
+                          <div className="sdb-chapter-card-info">
+                            <span className="sdb-chapter-card-meta">{chapter.title.split(':')[0]}</span>
+                            <h4 className="sdb-chapter-card-title">{chapter.videoTitle}</h4>
                           </div>
                           <a 
-                            className="primary-button" 
+                            className="sdb-quiz-btn-primary sdb-chapter-card-action" 
                             href={chapter.videoUrl} 
                             rel="noreferrer" 
                             target="_blank"
-                            style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', fontSize: '0.85rem', padding: '8px 12px', textDecoration: 'none' }}
+                            style={{ textDecoration: 'none' }}
                           >
-                            <PlayCircle style={{ width: '16px', height: '16px' }} /> Play Video
+                            <PlayCircle size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Watch Video
                           </a>
                         </div>
                       </article>
@@ -1387,25 +1720,27 @@ function StudentDashboard() {
                 )}
 
                 {activeSubjectTab === 'materials' && (
-                  <div className="course-grid">
+                  <div className="sdb-chapter-grid">
                     {selectedCourse.chapters.map((chapter) => (
-                      <article className="category-card" key={chapter.id}>
-                        <div className="category-card-header" style={{ background: 'linear-gradient(135deg, #10b981, #047857)', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <FileText style={{ width: '40px', height: '40px', color: '#fff' }} />
+                      <article className="sdb-chapter-card" key={chapter.id}>
+                        <div className="sdb-chapter-card-top pdf">
+                          <div className="sdb-chapter-card-icon">
+                            <FileText />
+                          </div>
                         </div>
-                        <div className="category-card-body" style={{ padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '140px' }}>
-                          <div>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--muted)', fontWeight: 600 }}>{chapter.title.split(':')[0]}</span>
-                            <h4 style={{ margin: '4px 0 0 0', fontSize: '0.95rem', fontWeight: 700, lineHeight: '1.3' }}>{chapter.pdfTitle}</h4>
+                        <div className="sdb-chapter-card-body">
+                          <div className="sdb-chapter-card-info">
+                            <span className="sdb-chapter-card-meta">{chapter.title.split(':')[0]}</span>
+                            <h4 className="sdb-chapter-card-title">{chapter.pdfTitle}</h4>
                           </div>
                           <a 
-                            className="primary-button" 
+                            className="sdb-quiz-btn-primary sdb-chapter-card-action" 
                             href={chapter.pdfUrl} 
                             rel="noreferrer" 
                             target="_blank"
-                            style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', fontSize: '0.85rem', padding: '8px 12px', textDecoration: 'none' }}
+                            style={{ textDecoration: 'none', background: 'var(--sdb-success)' }}
                           >
-                            <FileText style={{ width: '16px', height: '16px' }} /> View PDF
+                            <FileText size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> View PDF
                           </a>
                         </div>
                       </article>
@@ -1414,24 +1749,25 @@ function StudentDashboard() {
                 )}
 
                 {activeSubjectTab === 'tests' && (
-                  <div className="course-grid">
+                  <div className="sdb-chapter-grid">
                     {selectedCourse.tests.map((test) => (
-                      <article className="category-card" key={test.id}>
-                        <div className="category-card-header" style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Award style={{ width: '40px', height: '40px', color: '#fff' }} />
+                      <article className="sdb-chapter-card" key={test.id}>
+                        <div className="sdb-chapter-card-top test">
+                          <div className="sdb-chapter-card-icon">
+                            <Award />
+                          </div>
                         </div>
-                        <div className="category-card-body" style={{ padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '140px' }}>
-                          <div>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--muted)', fontWeight: 600 }}>{test.chapterRange}</span>
-                            <h4 style={{ margin: '4px 0 0 0', fontSize: '0.95rem', fontWeight: 700, lineHeight: '1.3' }}>{test.title}</h4>
+                        <div className="sdb-chapter-card-body">
+                          <div className="sdb-chapter-card-info">
+                            <span className="sdb-chapter-card-meta">{test.chapterRange}</span>
+                            <h4 className="sdb-chapter-card-title">{test.title}</h4>
                           </div>
                           <button 
-                            className="primary-button" 
+                            className="sdb-quiz-btn-primary sdb-chapter-card-action" 
                             type="button" 
                             onClick={() => startQuiz(selectedCourse, test.id)}
-                            style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', fontSize: '0.85rem', padding: '8px 12px', width: '100%' }}
                           >
-                            <Clock style={{ width: '16px', height: '16px' }} /> Start Test
+                            <Clock size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Start Test
                           </button>
                         </div>
                       </article>
@@ -1446,39 +1782,69 @@ function StudentDashboard() {
         {/* 3. Analytics Tab */}
         {activeTab === 'analytics' && (
           <>
-            {renderDashboardHeader(studentProfile.record?.fullName ?? userProfile?.fullName ?? 'Student', 'Student Analytics')}
+            <div className="sdb-page-header">
+              <div>
+                <h1 className="sdb-page-title">Analytics</h1>
+                <p className="sdb-page-sub">Performance review and scorecard analysis</p>
+              </div>
+            </div>
 
-            <section className="stats-grid">
-              <StatCard icon={BarChart3} label="Average Score" loading={attempts.loading} value={`${averageScore}%`} />
-              <StatCard icon={Award} label="Highest Score" loading={attempts.loading} value={`${highestScore}%`} />
-              <StatCard icon={Target} label="Lowest Score" loading={attempts.loading} value={`${lowestScore}%`} />
-              <StatCard icon={Check} label="Completion" loading={attempts.loading} value={`${completionPercentage}%`} />
-            </section>
+            <div className="sdb-stats-row">
+              <div className="sdb-stat-card indigo">
+                <div className="sdb-stat-icon"><BarChart3 size={16} /></div>
+                <div className="sdb-stat-label">Average Score</div>
+                <div className="sdb-stat-value">{averageScore}%</div>
+                <div className="sdb-stat-hint">Subject averages</div>
+              </div>
+              <div className="sdb-stat-card green">
+                <div className="sdb-stat-icon"><Award size={16} /></div>
+                <div className="sdb-stat-label">Highest Score</div>
+                <div className="sdb-stat-value">{highestScore}%</div>
+                <div className="sdb-stat-hint">Personal record</div>
+              </div>
+              <div className="sdb-stat-card amber">
+                <div className="sdb-stat-icon"><Target size={16} /></div>
+                <div className="sdb-stat-label">Lowest Score</div>
+                <div className="sdb-stat-value">{lowestScore}%</div>
+                <div className="sdb-stat-hint">Needs improvement</div>
+              </div>
+              <div className="sdb-stat-card blue">
+                <div className="sdb-stat-icon"><Check size={16} /></div>
+                <div className="sdb-stat-label">Completion</div>
+                <div className="sdb-stat-value">{completionPercentage}%</div>
+                <div className="sdb-stat-hint">Courses completed</div>
+              </div>
+            </div>
 
-            <div className="learning-analytics-grid">
-              <article className="learning-panel">
-                <h3>Subject-wise Performance</h3>
-                <div className="mini-list">
-                  {subjectAverages.length ? subjectAverages.map((subject) => (
-                    <div key={subject.subject}>
-                      <strong>{subject.subject}</strong>
-                      <span>{subject.average}% average</span>
+            <div className="sdb-2col">
+              <div className="sdb-card">
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 16px 0', borderBottom: '1px solid var(--sdb-border)', paddingBottom: '8px' }}>Subject-wise Performance</h3>
+                <div className="sdb-course-list">
+                  {subjectAverages.length ? subjectAverages.map((item) => (
+                    <div key={item.subject} className="sdb-course-item" style={{ padding: '8px 0' }}>
+                      <div className="sdb-course-info">
+                        <div className="sdb-course-name" style={{ fontSize: '0.85rem' }}>{item.subject}</div>
+                      </div>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--sdb-primary)' }}>{Math.round(item.average)}% avg</span>
                     </div>
-                  )) : <span>No subject attempts yet.</span>}
+                  )) : <div className="sdb-empty" style={{ padding: '16px 0' }}>No subject attempts yet.</div>}
                 </div>
-              </article>
+              </div>
               
-              <article className="learning-panel">
-                <h3>Recent Test Attempts</h3>
-                <div className="mini-list">
+              <div className="sdb-card">
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 16px 0', borderBottom: '1px solid var(--sdb-border)', paddingBottom: '8px' }}>Recent Test Attempts</h3>
+                <div className="sdb-course-list">
                   {attempts.records.length ? attempts.records.slice(0, 5).map((attempt) => (
-                    <div key={attempt.id}>
-                      <strong>{attempt.subject} · {attempt.testTitle}</strong>
-                      <span>Score: {attempt.percentage}% · Attempt #{attempt.attemptNumber}</span>
+                    <div key={attempt.id} className="sdb-course-item" style={{ padding: '8px 0' }}>
+                      <div className="sdb-course-info">
+                        <div className="sdb-course-name" style={{ fontSize: '0.85rem' }}>{attempt.subject} · {attempt.testTitle}</div>
+                        <div className="sdb-course-sub" style={{ fontSize: '0.72rem' }}>Attempt #{attempt.attemptNumber}</div>
+                      </div>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: attempt.percentage >= 60 ? 'var(--sdb-success)' : 'var(--sdb-danger)' }}>{attempt.percentage}%</span>
                     </div>
-                  )) : <span>No attempts submitted yet.</span>}
+                  )) : <div className="sdb-empty" style={{ padding: '16px 0' }}>No attempts submitted yet.</div>}
                 </div>
-              </article>
+              </div>
             </div>
           </>
         )}
@@ -1486,42 +1852,44 @@ function StudentDashboard() {
         {/* 4. Profile Tab */}
         {activeTab === 'profile' && (
           <>
-            {renderDashboardHeader(studentProfile.record?.fullName ?? userProfile?.fullName ?? 'Student', 'Student Profile')}
+            <div className="sdb-page-header">
+              <div>
+                <h1 className="sdb-page-title">Profile</h1>
+                <p className="sdb-page-sub">View and manage your account details</p>
+              </div>
+            </div>
 
-            <section className="dashboard-section">
-              <div className="page-heading split-heading">
-                <div>
-                  <p className="eyebrow">Profile</p>
-                  <h2>Student Information</h2>
-                </div>
+            <div className="sdb-card">
+              <div className="sdb-section-hd" style={{ borderBottom: '1px solid var(--sdb-border)', paddingBottom: '12px', marginBottom: '16px' }}>
+                <span className="sdb-section-title"><User size={16} /> Student Information</span>
                 {!joinedClass && (
-                  <button className="secondary-icon-button" type="button" onClick={() => setShowJoinForm((current) => !current)}>
-                    <Plus aria-hidden="true" />
+                  <button className="sdb-quiz-btn-primary" type="button" onClick={() => setShowJoinForm((current) => !current)}>
+                    <Plus size={14} style={{ marginRight: '6px' }} />
                     Join Class
                   </button>
                 )}
               </div>
 
-              <dl className="profile-list learning-profile">
-                <div>
-                  <dt>School</dt>
-                  <dd>{studentProfile.record?.schoolName ?? 'School'}</dd>
+              <dl className="profile-list learning-profile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', margin: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <dt style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--sdb-subtle)', letterSpacing: '0.05em' }}>School</dt>
+                  <dd style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--sdb-text)', margin: 0 }}>{studentProfile.record?.schoolName ?? 'School'}</dd>
                 </div>
-                <div>
-                  <dt>Email</dt>
-                  <dd>{studentProfile.record?.email ?? userProfile?.email}</dd>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <dt style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--sdb-subtle)', letterSpacing: '0.05em' }}>Email</dt>
+                  <dd style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--sdb-text)', margin: 0 }}>{studentProfile.record?.email ?? userProfile?.email}</dd>
                 </div>
-                <div>
-                  <dt>Status</dt>
-                  <dd>
-                    <span className="status-badge approved">{studentProfile.record?.status ?? 'active'}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <dt style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--sdb-subtle)', letterSpacing: '0.05em' }}>Status</dt>
+                  <dd style={{ margin: 0 }}>
+                    <span className="status-badge approved" style={{ display: 'inline-block', fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: '#DCFCE7', color: '#166534' }}>{studentProfile.record?.status ?? 'active'}</span>
                   </dd>
                 </div>
                 {joinedClass && (
                   <>
-                    <div>
-                      <dt>Joined Class ID</dt>
-                      <dd>{joinedClass.classId}</dd>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <dt style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--sdb-subtle)', letterSpacing: '0.05em' }}>Joined Class ID</dt>
+                      <dd style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--sdb-text)', margin: 0 }}>{joinedClass.classId}</dd>
                     </div>
                     <div>
                       <dt>Class Section</dt>
@@ -1553,7 +1921,7 @@ function StudentDashboard() {
                   </button>
                 </form>
               )}
-            </section>
+            </div>
           </>
         )}
       </main>
