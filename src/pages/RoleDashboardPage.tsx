@@ -45,6 +45,8 @@ import { StatCard } from '../components/admin/StatCard'
 import { EmptyState, ErrorState, SkeletonGrid } from '../components/common/StateViews'
 import type { UserRole } from '../contexts/authContextValue'
 import '../styles/StudentDashboard.css'
+import '../styles/TeacherDashboard.css'
+import '../styles/SchoolDashboard.css'
 import { auth, db } from '../firebase/firebase'
 import {
   usePendingStudentRequests,
@@ -207,6 +209,8 @@ function TeacherDashboard() {
     ),
   )
 
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'classrooms' | 'approvals' | 'analytics' | 'profile'>('dashboard')
+
   useEffect(() => {
     if (!userProfile?.schoolCode) {
       return undefined
@@ -328,237 +332,458 @@ function TeacherDashboard() {
     quizAttempts.error ??
     attendance.error
 
+  const displayName = userProfile?.fullName ?? 'Teacher'
+  const initial = displayName.charAt(0).toUpperCase()
+
   return (
-    <main className="school-dashboard">
-      <header className="school-dashboard-header">
-        <div className="school-logo large">
-          {userProfile?.fullName.charAt(0).toUpperCase() ?? 'T'}
-        </div>
-        <div className="school-dashboard-title">
-          <p className="eyebrow">Teacher Dashboard</p>
-          <h1>{userProfile?.fullName ?? 'Teacher'}</h1>
-          <dl>
-            <div>
-              <dt>School</dt>
-              <dd>{schoolName}</dd>
-            </div>
-            <div>
-              <dt>Email</dt>
-              <dd>{userProfile?.email}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>
-                <span className="status-badge approved">Active</span>
-              </dd>
-            </div>
-          </dl>
-        </div>
-        <button className="secondary-icon-button" type="button" onClick={handleLogout}>
-          <LogOut aria-hidden="true" />
-          Logout
-        </button>
-      </header>
+    <div className="tdb-layout">
 
-      {firstError ? <ErrorState message={firstError} /> : null}
-
-      <section className="stats-grid">
-        <StatCard icon={School} label="Total Classes" loading={classes.loading} value={classes.records.length} />
-        <StatCard icon={Users} label="Students Joined" loading={memberships.loading} value={memberships.records.length} />
-        <StatCard icon={UserCheck} label="Pending Student Approvals" loading={pendingStudents.loading} value={pendingStudents.records.length} />
-        <StatCard icon={BookOpen} label="Quiz Attempts" loading={quizAttempts.loading} value={quizAttempts.count} />
-        <StatCard icon={BarChart3} label="Average Marks" loading={teacherAttempts.loading} value={`${average(teacherAttempts.records.map((attempt) => attempt.percentage))}%`} />
-        <StatCard icon={Check} label="Attendance" loading={attendance.loading} value={attendance.count} />
-        <StatCard icon={GraduationCap} label="Active Students" loading={memberships.loading} value={new Set(memberships.records.map((membership) => membership.studentId)).size} />
-        <StatCard icon={Target} label="Completion" loading={teacherAttempts.loading} value={`${completionPercentage}%`} />
-      </section>
-
-      <section className="dashboard-section">
-        <div className="page-heading split-heading">
-          <div>
-            <p className="eyebrow">Classes</p>
-            <h2>Create Class</h2>
+      {/* ─── Sidebar Navigation ─── */}
+      <aside className="tdb-sidebar">
+        <div className="tdb-sidebar-inner">
+          <div className="tdb-brand">
+            <div className="tdb-brand-icon"><GraduationCap /></div>
+            <span className="tdb-brand-name">StudyHub</span>
           </div>
-          <div className="teacher-tools">
-            <select value={selectedClass} onChange={(event) => setSelectedClass(event.target.value)}>
-              {classOptions.map((className) => (
-                <option key={className} value={className}>
-                  {className}
-                </option>
-              ))}
-            </select>
-            <button className="primary-button icon-button" disabled={creatingClass} type="button" onClick={handleCreateClass}>
-              <Plus aria-hidden="true" />
-              {creatingClass ? 'Creating...' : 'Create Class'}
+
+          <span className="tdb-nav-label">Navigation</span>
+
+          <nav className="tdb-nav">
+            <button
+              className={`tdb-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dashboard')}
+            >
+              <LayoutDashboard size={16} /> Overview
+            </button>
+            <button
+              className={`tdb-nav-item ${activeTab === 'classrooms' ? 'active' : ''}`}
+              onClick={() => setActiveTab('classrooms')}
+            >
+              <School size={16} /> Classrooms
+            </button>
+            <button
+              className={`tdb-nav-item ${activeTab === 'approvals' ? 'active' : ''}`}
+              onClick={() => setActiveTab('approvals')}
+            >
+              <UserCheck size={16} /> Approvals
+              {pendingStudents.records.length > 0 && (
+                <span className="sdb-test-badge green" style={{ marginLeft: 'auto' }}>
+                  {pendingStudents.records.length}
+                </span>
+              )}
+            </button>
+            <button
+              className={`tdb-nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => setActiveTab('analytics')}
+            >
+              <ChartColumn size={16} /> Analytics
+            </button>
+            <button
+              className={`tdb-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => setActiveTab('profile')}
+            >
+              <User size={16} /> Profile
+            </button>
+          </nav>
+
+          <div className="tdb-sidebar-footer">
+            <button className="tdb-logout-btn" onClick={handleLogout}>
+              <LogOut size={16} /> Logout
             </button>
           </div>
         </div>
-        {createdClassId ? (
-          <button className="inline-copy-button strong" type="button" onClick={() => copyClassId(createdClassId)}>
-            <Copy aria-hidden="true" />
-            {createdClassId}
-          </button>
-        ) : null}
-        {classes.loading ? <SkeletonGrid items={2} /> : null}
-        {!classes.loading && classes.records.length === 0 ? <EmptyState message="No classes created yet." /> : null}
-        {classes.records.length > 0 ? (
-          <section className="table-card">
-            {classes.records.map((classRecord) => (
-              <article className="table-row class-row" key={classRecord.classId}>
-                <div>
-                  <strong>{classRecord.className}</strong>
-                  <span>{classRecord.classId}</span>
-                </div>
-                <span className="status-badge approved">{classRecord.status}</span>
-                <time>{formatTimestamp(classRecord.createdAt)}</time>
-                <button className="secondary-icon-button" type="button" onClick={() => copyClassId(classRecord.classId)}>
-                  <Copy aria-hidden="true" />
-                  Copy Class ID
-                </button>
-              </article>
-            ))}
-          </section>
-        ) : null}
-      </section>
+      </aside>
 
-      <section className="dashboard-section">
-        <div className="page-heading">
-          <p className="eyebrow">Approval Queue</p>
-          <h2>Student Approval Requests</h2>
-        </div>
-        {pendingStudents.loading ? <SkeletonGrid items={2} /> : null}
-        {!pendingStudents.loading && pendingStudents.records.length === 0 ? <EmptyState message="No pending student requests." /> : null}
-        <div className="school-grid">
-          {pendingStudents.records.map((request) => (
-            <article className="school-card" key={request.id}>
-              <div className="school-card-header">
-                <div className="school-logo">{request.fullName.charAt(0).toUpperCase()}</div>
-                <span className="status-badge pending">Pending</span>
+      {/* ─── Main Content ─── */}
+      <main className="tdb-main">
+        {firstError ? <ErrorState message={firstError} /> : null}
+
+        {/* ─── 1. Overview Tab ─── */}
+        {activeTab === 'dashboard' && (
+          <>
+            <div className="sdb-page-header">
+              <div>
+                <h1 className="sdb-page-title">Overview</h1>
+                <p className="sdb-page-sub">Dashboard metrics and stats summary</p>
               </div>
-              <h3>{request.fullName}</h3>
-              <dl>
+            </div>
+
+            {/* Glossy Welcome Card */}
+            <div className="sdb-welcome-card glossy">
+              <div className="sdb-welcome-left">
+                <div className="sdb-avatar">{initial}</div>
                 <div>
-                  <dt>Email</dt>
-                  <dd>{request.email}</dd>
+                  <p className="sdb-welcome-greeting">Welcome back,</p>
+                  <p className="sdb-welcome-name">{displayName}</p>
+                  <div className="sdb-welcome-meta">
+                    <span className="sdb-meta-item">
+                      <Building2 />
+                      <span className="sdb-meta-label">School:</span>
+                      <span className="sdb-meta-value">{schoolName}</span>
+                    </span>
+                    <span className="sdb-meta-item">
+                      <User />
+                      <span className="sdb-meta-label">Role:</span>
+                      <span className="sdb-meta-value">Class Instructor</span>
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <dt>Requested Date</dt>
-                  <dd>{formatTimestamp(request.requestedDate)}</dd>
+              </div>
+            </div>
+
+            {/* Quick Stats Grid */}
+            <div className="sdb-stats-row">
+              <div className="sdb-stat-card indigo">
+                <div className="sdb-stat-icon"><School size={16} /></div>
+                <div className="sdb-stat-label">Total Classes</div>
+                <div className="sdb-stat-value">{classes.records.length}</div>
+                <div className="sdb-stat-hint">Active cohorts</div>
+              </div>
+              <div className="sdb-stat-card green">
+                <div className="sdb-stat-icon"><Users size={16} /></div>
+                <div className="sdb-stat-label">Students Joined</div>
+                <div className="sdb-stat-value">{memberships.records.length}</div>
+                <div className="sdb-stat-hint">Enrolled class members</div>
+              </div>
+              <div className="sdb-stat-card amber">
+                <div className="sdb-stat-icon"><UserCheck size={16} /></div>
+                <div className="sdb-stat-label">Approvals Pending</div>
+                <div className="sdb-stat-value">{pendingStudents.records.length}</div>
+                <div className="sdb-stat-hint">Requests in queue</div>
+              </div>
+              <div className="sdb-stat-card blue">
+                <div className="sdb-stat-icon"><BookOpen size={16} /></div>
+                <div className="sdb-stat-label">Quiz Attempts</div>
+                <div className="sdb-stat-value">{quizAttempts.count}</div>
+                <div className="sdb-stat-hint">Test submissions</div>
+              </div>
+            </div>
+
+            <div className="sdb-stats-row">
+              <div className="sdb-stat-card green">
+                <div className="sdb-stat-icon"><BarChart3 size={16} /></div>
+                <div className="sdb-stat-label">Average Marks</div>
+                <div className="sdb-stat-value">
+                  {teacherAttempts.records.length ? `${Math.round(average(teacherAttempts.records.map((a) => a.percentage)))}%` : '—'}
+                </div>
+                <div className="sdb-stat-hint">Cohort average</div>
+              </div>
+              <div className="sdb-stat-card indigo">
+                <div className="sdb-stat-icon"><Check size={16} /></div>
+                <div className="sdb-stat-label">Attendance Count</div>
+                <div className="sdb-stat-value">{attendance.count}</div>
+                <div className="sdb-stat-hint">Checked-in records</div>
+              </div>
+              <div className="sdb-stat-card blue">
+                <div className="sdb-stat-icon"><GraduationCap size={16} /></div>
+                <div className="sdb-stat-label">Active Students</div>
+                <div className="sdb-stat-value">
+                  {new Set(memberships.records.map((membership) => membership.studentId)).size}
+                </div>
+                <div className="sdb-stat-hint">Participated in quiz</div>
+              </div>
+              <div className="sdb-stat-card amber">
+                <div className="sdb-stat-icon"><Target size={16} /></div>
+                <div className="sdb-stat-label">Completion</div>
+                <div className="sdb-stat-value">{completionPercentage}%</div>
+                <div className="sdb-stat-hint">Overall class completion</div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ─── 2. Classrooms Tab ─── */}
+        {activeTab === 'classrooms' && (
+          <>
+            <div className="sdb-page-header">
+              <div>
+                <h1 className="sdb-page-title">Classrooms Management</h1>
+                <p className="sdb-page-sub">Create classes and manage registered classrooms</p>
+              </div>
+            </div>
+
+            {/* Create Class widget */}
+            <div className="sdb-card">
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 16px 0', borderBottom: '1px solid var(--sdb-border)', paddingBottom: '8px' }}>Create New Class</h3>
+              <div className="tdb-tool-bar">
+                <select className="tdb-select" value={selectedClass} onChange={(event) => setSelectedClass(event.target.value)}>
+                  {classOptions.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <button className="sdb-quiz-btn-primary" disabled={creatingClass} type="button" onClick={handleCreateClass}>
+                  <Plus size={14} style={{ marginRight: '6px' }} />
+                  {creatingClass ? 'Creating...' : 'Create Class'}
+                </button>
+              </div>
+              {createdClassId && (
+                <div style={{ marginTop: '16px' }}>
+                  <span style={{ fontSize: '0.8rem', display: 'block', color: 'var(--sdb-muted)', marginBottom: '4px' }}>Class created successfully! Click to copy ID:</span>
+                  <div className="tdb-copy-badge" onClick={() => copyClassId(createdClassId)}>
+                    <Copy size={12} style={{ marginRight: '6px' }} /> {createdClassId}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Classroom records */}
+            <div className="sdb-card">
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 16px 0' }}>Registered Classes</h3>
+              {classes.loading && <SkeletonGrid items={2} />}
+              {!classes.loading && classes.records.length === 0 && <div className="sdb-empty">No classes created yet.</div>}
+              {!classes.loading && classes.records.length > 0 && (
+                <div className="tdb-table-card" style={{ marginTop: '12px' }}>
+                  <div className="tdb-table-row tdb-table-header">
+                    <div>Class Name</div>
+                    <div>Status</div>
+                    <div>Created Date</div>
+                    <div>Actions</div>
+                  </div>
+                  {classes.records.map((c) => (
+                    <div className="tdb-table-row" key={c.classId}>
+                      <div className="tdb-table-cell-bold">{c.className}</div>
+                      <div>
+                        <span className="sdb-test-badge green" style={{ textTransform: 'capitalize' }}>{c.status}</span>
+                      </div>
+                      <div>{formatTimestamp(c.createdAt)}</div>
+                      <div>
+                        <button className="sdb-continue-mini-btn" onClick={() => copyClassId(c.classId)}>
+                          <Copy size={11} style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Copy ID
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Enrolled Students Table */}
+            <div className="sdb-card">
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 16px 0' }}>Enrolled Class Students</h3>
+              {memberships.loading && <SkeletonGrid items={2} />}
+              {!memberships.loading && studentRows.length === 0 && <div className="sdb-empty">No students registered yet.</div>}
+              {!memberships.loading && studentRows.length > 0 && (
+                <div className="tdb-table-card" style={{ marginTop: '12px', overflowX: 'auto' }}>
+                  <div className="tdb-table-row tdb-table-header" style={{ gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr 1fr' }}>
+                    <div>Student</div>
+                    <div>Classroom</div>
+                    <div>Joined Date</div>
+                    <div>Quiz Average</div>
+                    <div>Latest Score</div>
+                    <div>Progress</div>
+                  </div>
+                  {studentRows.map((student) => (
+                    <div className="tdb-table-row" key={student.membershipId} style={{ gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr 1fr' }}>
+                      <div>
+                        <span className="tdb-table-cell-bold">{student.fullName}</span>
+                        <span className="tdb-table-cell-sub">{student.email}</span>
+                      </div>
+                      <div>{student.className}</div>
+                      <div>{formatTimestamp(student.joinedAt)}</div>
+                      <div className="tdb-table-cell-bold" style={{ color: 'var(--sdb-primary)' }}>{student.averageScore}</div>
+                      <div>{student.latestScore}</div>
+                      <div>
+                        <span className="sdb-test-badge blue">{student.completion}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ─── 3. Approvals Tab ─── */}
+        {activeTab === 'approvals' && (
+          <>
+            <div className="sdb-page-header">
+              <div>
+                <h1 className="sdb-page-title">Approval Queue</h1>
+                <p className="sdb-page-sub">Approve or reject student classroom membership requests</p>
+              </div>
+            </div>
+
+            {pendingStudents.loading && <SkeletonGrid items={2} />}
+            {!pendingStudents.loading && pendingStudents.records.length === 0 && (
+              <div className="sdb-card">
+                <div className="sdb-empty" style={{ padding: '40px 0' }}>
+                  <div className="sdb-empty-icon"><UserCheck size={20} /></div>
+                  <p className="sdb-empty-title">Queue is clear</p>
+                  <p className="sdb-empty-desc">No pending student requests at this time.</p>
+                </div>
+              </div>
+            )}
+
+            {!pendingStudents.loading && pendingStudents.records.length > 0 && (
+              <div className="sdb-chapter-grid">
+                {pendingStudents.records.map((request) => (
+                  <article className="sdb-chapter-card" key={request.id}>
+                    <div className="sdb-chapter-card-top test">
+                      <div className="sdb-chapter-card-icon">
+                        <UserCheck />
+                      </div>
+                    </div>
+                    <div className="sdb-chapter-card-body">
+                      <div className="sdb-chapter-card-info">
+                        <span className="sdb-chapter-card-meta">Approval Request</span>
+                        <h4 className="sdb-chapter-card-title">{request.fullName}</h4>
+                        <div style={{ marginTop: '10px', fontSize: '0.8rem', color: 'var(--sdb-muted)' }}>
+                          <div style={{ marginBottom: '2px' }}><strong>Email:</strong> {request.email}</div>
+                          <div><strong>Requested:</strong> {formatTimestamp(request.requestedDate)}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                        <button 
+                          className="sdb-quiz-btn-primary" 
+                          type="button" 
+                          onClick={() => approveStudent(request.id)}
+                          style={{ flex: 1, padding: '6px 12px', fontSize: '0.8rem', minHeight: '32px' }}
+                        >
+                          Approve
+                        </button>
+                        <button 
+                          className="sdb-quiz-btn-secondary" 
+                          type="button" 
+                          onClick={() => rejectStudent(request.id)}
+                          style={{ flex: 1, padding: '6px 12px', fontSize: '0.8rem', minHeight: '32px', color: 'var(--sdb-danger)', borderColor: '#FECACA' }}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ─── 4. Analytics Tab ─── */}
+        {activeTab === 'analytics' && (
+          <>
+            <div className="sdb-page-header">
+              <div>
+                <h1 className="sdb-page-title">Learning Analytics</h1>
+                <p className="sdb-page-sub">Evaluate subject performance and grade spreads</p>
+              </div>
+            </div>
+
+            {teacherAttempts.loading && <SkeletonGrid items={2} />}
+            {!teacherAttempts.loading && teacherAttempts.records.length === 0 && (
+              <div className="sdb-card">
+                <div className="sdb-empty" style={{ padding: '40px 0' }}>No quiz attempts submitted yet.</div>
+              </div>
+            )}
+
+            {!teacherAttempts.loading && teacherAttempts.records.length > 0 && (
+              <>
+                <div className="sdb-2col">
+                  {/* Recent attempts */}
+                  <div className="sdb-card">
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 16px 0', borderBottom: '1px solid var(--sdb-border)', paddingBottom: '8px' }}>Recent Attempts</h3>
+                    <div className="sdb-course-list">
+                      {teacherAttempts.records.slice(0, 6).map((attempt) => (
+                        <div className="sdb-course-item" key={attempt.id} style={{ padding: '8px 0' }}>
+                          <div className="sdb-course-info">
+                            <div className="sdb-course-name" style={{ fontSize: '0.85rem' }}>{attempt.studentName}</div>
+                            <div className="sdb-course-sub" style={{ fontSize: '0.72rem' }}>{attempt.subject} · {attempt.testTitle}</div>
+                          </div>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: attempt.percentage >= 60 ? 'var(--sdb-success)' : 'var(--sdb-danger)' }}>{attempt.percentage}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Subject averages */}
+                  <div className="sdb-card">
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 16px 0', borderBottom: '1px solid var(--sdb-border)', paddingBottom: '8px' }}>Subject Performance</h3>
+                    <div className="sdb-course-list">
+                      {subjectAverages.map((item) => (
+                        <div className="sdb-course-item" key={item.subject} style={{ padding: '10px 0' }}>
+                          <div className="sdb-course-info">
+                            <div className="sdb-course-name" style={{ fontSize: '0.85rem' }}>{item.subject}</div>
+                          </div>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--sdb-primary)' }}>{Math.round(item.average)}% avg</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="sdb-2col">
+                  {/* Strong students */}
+                  <div className="sdb-card">
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 16px 0', borderBottom: '1px solid var(--sdb-border)', paddingBottom: '8px' }}>Top Performers</h3>
+                    <div className="sdb-course-list">
+                      {(strongStudents.length ? strongStudents : studentPerformanceRows.slice(0, 3)).map((student) => (
+                        <div className="sdb-course-item" key={student.studentId} style={{ padding: '8px 0' }}>
+                          <div className="sdb-course-info">
+                            <div className="sdb-course-name" style={{ fontSize: '0.85rem' }}>{student.studentName}</div>
+                            <div className="sdb-course-sub" style={{ fontSize: '0.72rem' }}>{student.attempts} attempts</div>
+                          </div>
+                          <span className="sdb-test-badge green">{Math.round(student.average)}% avg</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Weak students */}
+                  <div className="sdb-card">
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 16px 0', borderBottom: '1px solid var(--sdb-border)', paddingBottom: '8px' }}>Needs Attention</h3>
+                    <div className="sdb-course-list">
+                      {(weakStudents.length ? weakStudents : studentPerformanceRows.slice(-3)).map((student) => (
+                        <div className="sdb-course-item" key={student.studentId} style={{ padding: '8px 0' }}>
+                          <div className="sdb-course-info">
+                            <div className="sdb-course-name" style={{ fontSize: '0.85rem' }}>{student.studentName}</div>
+                            <div className="sdb-course-sub" style={{ fontSize: '0.72rem' }}>{student.attempts} attempts</div>
+                          </div>
+                          <span className="sdb-test-badge amber">{Math.round(student.average)}% avg</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ─── 5. Profile Tab ─── */}
+        {activeTab === 'profile' && (
+          <>
+            <div className="sdb-page-header">
+              <div>
+                <h1 className="sdb-page-title">Profile</h1>
+                <p className="sdb-page-sub">View and manage your instructor account details</p>
+              </div>
+            </div>
+
+            <div className="sdb-card">
+              <div className="sdb-section-hd" style={{ borderBottom: '1px solid var(--sdb-border)', paddingBottom: '12px', marginBottom: '16px' }}>
+                <span className="sdb-section-title"><User size={16} /> Teacher Details</span>
+              </div>
+
+              <dl className="profile-list learning-profile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', margin: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <dt style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--sdb-subtle)', letterSpacing: '0.05em' }}>School</dt>
+                  <dd style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--sdb-text)', margin: 0 }}>{schoolName}</dd>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <dt style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--sdb-subtle)', letterSpacing: '0.05em' }}>Email</dt>
+                  <dd style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--sdb-text)', margin: 0 }}>{userProfile?.email}</dd>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <dt style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--sdb-subtle)', letterSpacing: '0.05em' }}>Status</dt>
+                  <dd style={{ margin: 0 }}>
+                    <span className="status-badge approved" style={{ display: 'inline-block', fontSize: '0.72rem', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: '#DCFCE7', color: '#166534' }}>Active</span>
+                  </dd>
                 </div>
               </dl>
-              <div className="card-actions two-actions">
-                <button type="button" onClick={() => approveStudent(request.id)}>
-                  <Check aria-hidden="true" />
-                  Approve
-                </button>
-                <button type="button" onClick={() => rejectStudent(request.id)}>
-                  <X aria-hidden="true" />
-                  Reject
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="dashboard-section">
-        <div className="page-heading">
-          <p className="eyebrow">Classrooms</p>
-          <h2>Joined Students</h2>
-        </div>
-        {memberships.loading ? <SkeletonGrid items={2} /> : null}
-        {!memberships.loading && studentRows.length === 0 ? <EmptyState message="No students have joined your classes yet." /> : null}
-        {studentRows.length > 0 ? (
-          <section className="table-card">
-            <header className="table-row student-row table-header-row" style={{ fontWeight: 'bold', background: 'rgba(0, 0, 0, 0.02)', borderBottom: '2px solid var(--line)' }}>
-              <div>Student</div>
-              <div>Class</div>
-              <div>Joined Date</div>
-              <div>Quiz Attempts</div>
-              <div>Average Score</div>
-              <div>Latest Score</div>
-              <div>Completion %</div>
-            </header>
-            {studentRows.map((student) => (
-              <article className="table-row student-row" key={student.membershipId}>
-                <div>
-                  <strong>{student.fullName}</strong>
-                  <span>{student.email}</span>
-                </div>
-                <span>{student.className}</span>
-                <time>{formatTimestamp(student.joinedAt)}</time>
-                <span>{student.quizAttempts} attempts</span>
-                <span>{student.averageScore}</span>
-                <span>{student.latestScore}</span>
-                <span>{student.completion}</span>
-              </article>
-            ))}
-          </section>
-        ) : null}
-      </section>
-
-      <section className="dashboard-section">
-        <div className="page-heading split-heading">
-          <div>
-            <p className="eyebrow">Learning Analytics</p>
-            <h2>Student Performance</h2>
-          </div>
-          <span className="status-badge approved">{teacherAttempts.records.length} Attempts</span>
-        </div>
-        {teacherAttempts.loading ? <SkeletonGrid items={2} /> : null}
-        {!teacherAttempts.loading && teacherAttempts.records.length === 0 ? (
-          <EmptyState message="No test attempts submitted yet." />
-        ) : null}
-        {teacherAttempts.records.length > 0 ? (
-          <div className="learning-analytics-grid">
-            <article className="learning-panel">
-              <h3>Recent Test Attempts</h3>
-              <div className="mini-list">
-                {teacherAttempts.records.slice(0, 5).map((attempt) => (
-                  <div key={attempt.id}>
-                    <strong>{attempt.studentName}</strong>
-                    <span>{attempt.subject} · {attempt.testTitle} · {attempt.percentage}%</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-            <article className="learning-panel">
-              <h3>Weak Students</h3>
-              <div className="mini-list">
-                {(weakStudents.length ? weakStudents : studentPerformanceRows.slice(-3)).map((student) => (
-                  <div key={student.studentId}>
-                    <strong>{student.studentName}</strong>
-                    <span>{student.average}% average · {student.attempts} attempts</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-            <article className="learning-panel">
-              <h3>Strong Students</h3>
-              <div className="mini-list">
-                {(strongStudents.length ? strongStudents : studentPerformanceRows.slice(0, 3)).map((student) => (
-                  <div key={student.studentId}>
-                    <strong>{student.studentName}</strong>
-                    <span>{student.average}% average · {student.attempts} attempts</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-            <article className="learning-panel">
-              <h3>Subject Performance</h3>
-              <div className="mini-list">
-                {subjectAverages.map((subject) => (
-                  <div key={subject.subject}>
-                    <strong>{subject.subject}</strong>
-                    <span>{subject.average}% average</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-          </div>
-        ) : null}
-      </section>
-    </main>
+            </div>
+          </>
+        )}
+      </main>
+    </div>
   )
 }
 
@@ -2075,208 +2300,359 @@ export function RoleDashboardPage({ role }: RoleDashboardPageProps) {
     students.error ??
     teachers.error
 
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'teachers' | 'approvals'>('dashboard')
+
   return (
-    <main className="school-dashboard">
-      <header className="school-dashboard-header">
-        <div className="school-logo large">
-          {school?.logoUrl ? (
-            <img alt={`${school.schoolName} logo`} src={school.logoUrl} />
-          ) : (
-            school?.schoolName.charAt(0).toUpperCase() ?? 'S'
-          )}
-        </div>
-        <div className="school-dashboard-title">
-          <p className="eyebrow">School Admin Dashboard</p>
-          <h1>{school?.schoolName ?? 'School Dashboard'}</h1>
-          <dl>
-            <div>
-              <dt>Principal</dt>
-              <dd>{school?.principalName ?? userProfile?.fullName}</dd>
-            </div>
-            <div>
-              <dt>Email</dt>
-              <dd>{school?.email ?? userProfile?.email}</dd>
-            </div>
-            <div>
-              <dt>School Code</dt>
-              <dd>
-                <button
-                  className="inline-copy-button strong"
-                  type="button"
-                  onClick={copySchoolCode}
-                >
-                  <Clipboard aria-hidden="true" />
-                  {school?.schoolCode ?? 'Pending'}
-                </button>
-              </dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>
-                <span className="status-badge approved">
-                  {school?.status ?? 'approved'}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt>Created Date</dt>
-              <dd>{formatTimestamp(school?.createdAt)}</dd>
-            </div>
-          </dl>
-        </div>
-        <button className="secondary-icon-button" type="button" onClick={() => signOut(auth)}>
-          <LogOut aria-hidden="true" />
-          Logout
-        </button>
-      </header>
+    <div className="sdb-school-layout">
 
-      {firstError ? <ErrorState message={firstError} /> : null}
-
-      <section className="stats-grid">
-        <StatCard
-          icon={UserRoundCheck}
-          label="Total Teachers"
-          loading={teachers.loading}
-          value={teachers.count}
-        />
-        <StatCard
-          icon={GraduationCap}
-          label="Total Students"
-          loading={students.loading}
-          value={students.count}
-        />
-        <StatCard icon={School} label="Classes" loading={classes.loading} value={classes.count} />
-        <StatCard
-          icon={BookOpen}
-          label="Courses"
-          loading={courses.loading}
-          value={courses.count}
-        />
-      </section>
-
-      <section className="dashboard-section">
-        <div className="page-heading split-heading">
-          <div>
-            <p className="eyebrow">Approval Queue</p>
-            <h2>Teacher Approval Requests</h2>
+      {/* ─── Sidebar Navigation ─── */}
+      <aside className="sdb-school-sidebar">
+        <div className="sdb-school-sidebar-inner">
+          <div className="sdb-school-brand">
+            <div className="sdb-school-brand-icon"><School /></div>
+            <span className="sdb-school-brand-name">StudyHub</span>
           </div>
-        </div>
-        {pendingTeacherRequests.loading ? <SkeletonGrid items={2} /> : null}
-        {!pendingTeacherRequests.loading && pendingTeacherRequests.requests.length === 0 ? (
-          <EmptyState message="No pending teacher requests." />
-        ) : null}
-        <div className="school-grid">
-          {pendingTeacherRequests.requests.map((request) => (
-            <article className="school-card" key={request.id}>
-              <div className="school-card-header">
-                <div className="school-logo">{request.fullName.charAt(0).toUpperCase()}</div>
-                <span className="status-badge pending">Pending</span>
-              </div>
-              <h3>{request.fullName}</h3>
-              <dl>
-                <div>
-                  <dt>Email</dt>
-                  <dd>{request.email}</dd>
-                </div>
-                <div>
-                  <dt>Requested Date</dt>
-                  <dd>{formatTimestamp(request.requestedDate)}</dd>
-                </div>
-              </dl>
-              <div className="card-actions two-actions">
-                <button type="button" onClick={() => approveTeacher(request.id)}>
-                  <Check aria-hidden="true" />
-                  Approve
-                </button>
-                <button type="button" onClick={() => rejectTeacher(request.id)}>
-                  <X aria-hidden="true" />
-                  Reject
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
 
-      <section className="dashboard-section">
-        <div className="page-heading split-heading">
-          <div>
-            <p className="eyebrow">Directory</p>
-            <h2>Manage Teachers</h2>
-          </div>
-          <div className="teacher-tools">
-            <label className="search-box">
-              <Search aria-hidden="true" />
-              <input
-                placeholder="Search teachers"
-                type="search"
-                value={teacherSearch}
-                onChange={(event) => {
-                  setTeacherSearch(event.target.value)
-                  setTeacherPage(1)
-                }}
-              />
-            </label>
-            <select
-              value={teacherFilter}
-              onChange={(event) => setTeacherFilter(event.target.value as 'all' | 'active')}
+          <span className="sdb-school-nav-label">Administration</span>
+
+          <nav className="sdb-school-nav">
+            <button
+              className={`sdb-school-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dashboard')}
             >
-              <option value="all">All teachers</option>
-              <option value="active">Active</option>
-            </select>
+              <LayoutDashboard size={16} /> Overview
+            </button>
+            <button
+              className={`sdb-school-nav-item ${activeTab === 'teachers' ? 'active' : ''}`}
+              onClick={() => setActiveTab('teachers')}
+            >
+              <UserRoundCheck size={16} /> Teachers Directory
+            </button>
+            <button
+              className={`sdb-school-nav-item ${activeTab === 'approvals' ? 'active' : ''}`}
+              onClick={() => setActiveTab('approvals')}
+            >
+              <UserCheck size={16} /> Approvals Queue
+              {pendingTeacherRequests.requests.length > 0 && (
+                <span className="sdb-test-badge green" style={{ marginLeft: 'auto' }}>
+                  {pendingTeacherRequests.requests.length}
+                </span>
+              )}
+            </button>
+          </nav>
+
+          <div className="sdb-school-sidebar-footer">
+            <button className="sdb-school-logout-btn" onClick={() => signOut(auth)}>
+              <LogOut size={16} /> Logout
+            </button>
           </div>
         </div>
+      </aside>
 
-        {activeTeacherRequests.loading ? <SkeletonGrid items={2} /> : null}
-        {!activeTeacherRequests.loading && pagedTeachers.length === 0 ? (
-          <EmptyState message="No teachers found." />
-        ) : null}
-        {pagedTeachers.length > 0 ? (
-          <section className="table-card">
-            {pagedTeachers.map((teacher) => (
-              <article className="table-row teachers-row" key={teacher.id}>
+      {/* ─── Main Content ─── */}
+      <main className="sdb-school-main">
+        {firstError ? <ErrorState message={firstError} /> : null}
+
+        {/* ─── 1. Overview Tab ─── */}
+        {activeTab === 'dashboard' && (
+          <>
+            <div className="sdb-page-header">
+              <div>
+                <h1 className="sdb-page-title">Overview</h1>
+                <p className="sdb-page-sub">School statistics and administrative codes</p>
+              </div>
+            </div>
+
+            {/* Glossy Welcome Card */}
+            <div className="sdb-welcome-card glossy">
+              <div className="sdb-welcome-left">
+                <div className="sdb-avatar">
+                  {school?.logoUrl ? (
+                    <img alt={`${school.schoolName} logo`} src={school.logoUrl} style={{ width: '100%', height: '100%', borderRadius: '50%' }} />
+                  ) : (
+                    school?.schoolName.charAt(0).toUpperCase() ?? 'S'
+                  )}
+                </div>
                 <div>
-                  <strong>{teacher.fullName}</strong>
-                  <span>{teacher.email}</span>
+                  <p className="sdb-welcome-greeting">School Administrator,</p>
+                  <p className="sdb-welcome-name">{school?.schoolName ?? 'School Dashboard'}</p>
+                  <div className="sdb-welcome-meta">
+                    <span className="sdb-meta-item">
+                      <User />
+                      <span className="sdb-meta-label">Principal:</span>
+                      <span className="sdb-meta-value">{school?.principalName ?? userProfile?.fullName}</span>
+                    </span>
+                    <span className="sdb-meta-item">
+                      <Building2 />
+                      <span className="sdb-meta-label">Email:</span>
+                      <span className="sdb-meta-value">{school?.email ?? userProfile?.email}</span>
+                    </span>
+                    <span className="sdb-meta-item">
+                      <Check />
+                      <span className="sdb-meta-label">Status:</span>
+                      <span className="sdb-meta-value" style={{ textTransform: 'capitalize' }}>{school?.status ?? 'approved'}</span>
+                    </span>
+                  </div>
                 </div>
-                <span>{teacher.subjects.length ? teacher.subjects.join(', ') : 'No subjects'}</span>
-                <span className="status-badge approved">Active</span>
-                <time>{formatTimestamp(teacher.joinedDate)}</time>
-                <div className="row-actions">
-                  <button aria-label="Edit teacher" type="button">
-                    <Pencil aria-hidden="true" />
+              </div>
+              <div className="sdb-welcome-right" style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <div style={{
+                  background: 'rgba(79, 70, 229, 0.05)',
+                  border: '1px dashed rgba(79, 70, 229, 0.25)',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: '4px'
+                }}>
+                  <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'var(--sdb-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>School Registration Code</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{
+                      fontFamily: 'monospace',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      color: 'var(--sdb-primary)',
+                      letterSpacing: '0.02em'
+                    }}>
+                      {school?.schoolCode ?? 'PENDING'}
+                    </span>
+                    {school?.schoolCode && (
+                      <button 
+                        onClick={copySchoolCode}
+                        style={{
+                          background: 'var(--sdb-primary)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '2px 6px',
+                          fontSize: '0.68rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          transition: 'background 0.12s'
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = '#4338CA')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--sdb-primary)')}
+                      >
+                        <Clipboard size={10} /> Copy
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="sdb-page-date" style={{ borderLeft: '1px solid var(--sdb-border)', paddingLeft: '16px', height: '40px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <span className="sdb-date-day">
+                    {new Date().toLocaleDateString('en-IN', { weekday: 'long' })}
+                  </span>
+                  <strong style={{ fontSize: '0.8rem' }}>
+                    {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Admin Stats Grid */}
+            <div className="sdb-stats-row">
+              <div className="sdb-stat-card indigo">
+                <div className="sdb-stat-icon"><UserRoundCheck size={16} /></div>
+                <div className="sdb-stat-label">Total Teachers</div>
+                <div className="sdb-stat-value">{teachers.count}</div>
+                <div className="sdb-stat-hint">Approved instructors</div>
+              </div>
+              <div className="sdb-stat-card green">
+                <div className="sdb-stat-icon"><GraduationCap size={16} /></div>
+                <div className="sdb-stat-label">Total Students</div>
+                <div className="sdb-stat-value">{students.count}</div>
+                <div className="sdb-stat-hint">Registered students</div>
+              </div>
+              <div className="sdb-stat-card amber">
+                <div className="sdb-stat-icon"><School size={16} /></div>
+                <div className="sdb-stat-label">Total Classes</div>
+                <div className="sdb-stat-value">{classes.count}</div>
+                <div className="sdb-stat-hint">Classrooms created</div>
+              </div>
+              <div className="sdb-stat-card blue">
+                <div className="sdb-stat-icon"><BookOpen size={16} /></div>
+                <div className="sdb-stat-label">Courses</div>
+                <div className="sdb-stat-value">{courses.count}</div>
+                <div className="sdb-stat-hint">Syllabus courses</div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ─── 2. Teachers Directory Tab ─── */}
+        {activeTab === 'teachers' && (
+          <>
+            <div className="sdb-page-header">
+              <div>
+                <h1 className="sdb-page-title">Teachers Directory</h1>
+                <p className="sdb-page-sub">Manage and search registered teachers</p>
+              </div>
+            </div>
+
+            <div className="sdb-card">
+              <div className="sdb-section-hd" style={{ marginBottom: '16px' }}>
+                <span className="sdb-section-title"><UserRoundCheck size={16} /> Instructors List</span>
+                <div className="tdb-tool-bar">
+                  <input
+                    className="tdb-select"
+                    placeholder="Search teachers..."
+                    type="search"
+                    style={{ width: '200px' }}
+                    value={teacherSearch}
+                    onChange={(event) => {
+                      setTeacherSearch(event.target.value)
+                      setTeacherPage(1)
+                    }}
+                  />
+                  <select
+                    className="tdb-select"
+                    value={teacherFilter}
+                    onChange={(event) => setTeacherFilter(event.target.value as 'all' | 'active')}
+                  >
+                    <option value="all">All Teachers</option>
+                    <option value="active">Active Status</option>
+                  </select>
+                </div>
+              </div>
+
+              {activeTeacherRequests.loading && <SkeletonGrid items={2} />}
+              {!activeTeacherRequests.loading && pagedTeachers.length === 0 && (
+                <div className="sdb-empty">No teachers found in registry.</div>
+              )}
+
+              {!activeTeacherRequests.loading && pagedTeachers.length > 0 && (
+                <div className="sdb-school-table-card">
+                  <div className="sdb-school-table-row sdb-school-table-header">
+                    <div>Teacher Name</div>
+                    <div>Subjects</div>
+                    <div>Status</div>
+                    <div>Joined Date</div>
+                    <div>Actions</div>
+                  </div>
+                  {pagedTeachers.map((teacher) => (
+                    <div className="sdb-school-table-row" key={teacher.id}>
+                      <div>
+                        <span className="sdb-school-table-cell-bold">{teacher.fullName}</span>
+                        <span className="sdb-school-table-cell-sub">{teacher.email}</span>
+                      </div>
+                      <div>{teacher.subjects.length ? teacher.subjects.join(', ') : 'None assigned'}</div>
+                      <div>
+                        <span className="sdb-test-badge green">Active</span>
+                      </div>
+                      <div>{formatTimestamp(teacher.joinedDate)}</div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button className="sdb-continue-mini-btn" type="button" aria-label="Edit teacher">
+                          <Pencil size={11} style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Edit
+                        </button>
+                        <button className="sdb-continue-mini-btn" type="button" aria-label="Disable teacher">
+                          <ToggleLeft size={11} style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Disable
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {pageCount > 1 && (
+                <div className="pagination" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '20px' }}>
+                  <button
+                    className="sdb-quiz-btn-secondary"
+                    disabled={currentPage === 1}
+                    type="button"
+                    style={{ minHeight: '30px', padding: '4px 12px' }}
+                    onClick={() => setTeacherPage((page) => Math.max(1, page - 1))}
+                  >
+                    Previous
                   </button>
-                  <button aria-label="Disable teacher" type="button">
-                    <ToggleLeft aria-hidden="true" />
-                  </button>
-                  <button aria-label="Delete teacher" type="button">
-                    <Trash2 aria-hidden="true" />
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>
+                    Page {currentPage} of {pageCount}
+                  </span>
+                  <button
+                    className="sdb-quiz-btn-secondary"
+                    disabled={currentPage === pageCount}
+                    type="button"
+                    style={{ minHeight: '30px', padding: '4px 12px' }}
+                    onClick={() => setTeacherPage((page) => Math.min(pageCount, page + 1))}
+                  >
+                    Next
                   </button>
                 </div>
-              </article>
-            ))}
-          </section>
-        ) : null}
-        <div className="pagination">
-          <button
-            disabled={currentPage === 1}
-            type="button"
-            onClick={() => setTeacherPage((page) => Math.max(1, page - 1))}
-          >
-            Previous
-          </button>
-          <span>
-            Page {currentPage} of {pageCount}
-          </span>
-          <button
-            disabled={currentPage === pageCount}
-            type="button"
-            onClick={() => setTeacherPage((page) => Math.min(pageCount, page + 1))}
-          >
-            Next
-          </button>
-        </div>
-      </section>
-    </main>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ─── 3. Approvals Tab ─── */}
+        {activeTab === 'approvals' && (
+          <>
+            <div className="sdb-page-header">
+              <div>
+                <h1 className="sdb-page-title">Approval Queue</h1>
+                <p className="sdb-page-sub">Approve pending teacher registration requests</p>
+              </div>
+            </div>
+
+            {pendingTeacherRequests.loading && <SkeletonGrid items={2} />}
+            {!pendingTeacherRequests.loading && pendingTeacherRequests.requests.length === 0 && (
+              <div className="sdb-card">
+                <div className="sdb-empty" style={{ padding: '40px 0' }}>
+                  <div className="sdb-empty-icon"><UserCheck size={20} /></div>
+                  <p className="sdb-empty-title">Queue is clear</p>
+                  <p className="sdb-empty-desc">No pending teacher registration requests.</p>
+                </div>
+              </div>
+            )}
+
+            {!pendingTeacherRequests.loading && pendingTeacherRequests.requests.length > 0 && (
+              <div className="sdb-chapter-grid">
+                {pendingTeacherRequests.requests.map((request) => (
+                  <article className="sdb-chapter-card" key={request.id}>
+                    <div className="sdb-chapter-card-top test">
+                      <div className="sdb-chapter-card-icon">
+                        <UserCheck />
+                      </div>
+                    </div>
+                    <div className="sdb-chapter-card-body">
+                      <div className="sdb-chapter-card-info">
+                        <span className="sdb-chapter-card-meta">Registration Request</span>
+                        <h4 className="sdb-chapter-card-title">{request.fullName}</h4>
+                        <div style={{ marginTop: '10px', fontSize: '0.8rem', color: 'var(--sdb-muted)' }}>
+                          <div style={{ marginBottom: '2px' }}><strong>Email:</strong> {request.email}</div>
+                          <div><strong>Requested:</strong> {formatTimestamp(request.requestedDate)}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                        <button
+                          className="sdb-quiz-btn-primary"
+                          type="button"
+                          onClick={() => approveTeacher(request.id)}
+                          style={{ flex: 1, padding: '6px 12px', fontSize: '0.8rem', minHeight: '32px' }}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          className="sdb-quiz-btn-secondary"
+                          type="button"
+                          onClick={() => rejectTeacher(request.id)}
+                          style={{ flex: 1, padding: '6px 12px', fontSize: '0.8rem', minHeight: '32px', color: 'var(--sdb-danger)', borderColor: '#FECACA' }}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </main>
+    </div>
   )
 }
