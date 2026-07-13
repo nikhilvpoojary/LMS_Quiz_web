@@ -1,0 +1,230 @@
+/*
+  Teacher Dashboard — Clean Minimal Design
+  Inspired by: Notion, Vercel, Linear, Stripe
+  Font: Inter / Plus Jakarta Sans
+  Primary: #4F46E5  |  Accent: #3B82F6
+  Background: #F8FAFC  |  Cards: #FFFFFF
+  Border: #E5E7EB
+*/
+
+/* ─── Layout ─── */
+.tdb-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+  background: 
+    radial-gradient(circle at 20% 0%, rgba(79, 70, 229, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 80% 0%, rgba(59, 130, 246, 0.03) 0%, transparent 35%),
+    var(--sdb-bg);
+  font-family: var(--sdb-font);
+  color: var(--sdb-text);
+}
+
+/* ─── Sidebar ─── */
+.tdb-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--sdb-card);
+  border-right: 1px solid var(--sdb-border);
+  overflow: hidden;
+}
+
+.tdb-sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px 12px;
+  overflow-y: auto;
+}
+
+.tdb-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  margin-bottom: 24px;
+}
+.tdb-brand-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--sdb-primary);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.tdb-brand-icon svg { width: 16px; height: 16px; color: #fff; }
+.tdb-brand-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--sdb-text);
+  letter-spacing: -0.01em;
+}
+
+.tdb-nav-label {
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--sdb-subtle);
+  padding: 0 10px;
+  margin: 16px 0 4px;
+}
+
+.tdb-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.tdb-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--sdb-muted);
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s;
+  font-family: var(--sdb-font);
+}
+
+.tdb-nav-item:hover {
+  background: #F3F4F6;
+  color: var(--sdb-text);
+}
+
+.tdb-nav-item.active {
+  background: var(--sdb-indigo-bg);
+  color: var(--sdb-primary);
+  font-weight: 600;
+}
+
+.tdb-sidebar-footer {
+  border-top: 1px solid var(--sdb-border);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.tdb-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--sdb-danger);
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.12s, border-color 0.12s;
+}
+.tdb-logout-btn:hover { background: #FEF2F2; border-color: #FECACA; }
+
+/* ─── Main Panel ─── */
+.tdb-main {
+  overflow-y: auto;
+  max-height: 100vh;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Tool settings header */
+.tdb-tool-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tdb-select {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--sdb-border);
+  font-family: var(--sdb-font);
+  font-size: 0.82rem;
+  color: var(--sdb-text);
+  background: var(--sdb-card);
+  outline: none;
+  cursor: pointer;
+}
+
+/* Copy component ID */
+.tdb-copy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #F3F4F6;
+  color: var(--sdb-muted);
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.76rem;
+  border: 1px solid var(--sdb-border);
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+
+/* ─── Modern Table layouts ─── */
+.tdb-table-card {
+  background: var(--sdb-card);
+  border: 1px solid var(--sdb-border);
+  border-radius: var(--sdb-radius);
+  box-shadow: var(--sdb-shadow);
+  overflow: hidden;
+}
+
+.tdb-table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--sdb-border);
+  font-size: 0.85rem;
+}
+
+.tdb-table-row:last-child {
+  border-bottom: none;
+}
+
+.tdb-table-header {
+  background: #F9FAFB;
+  font-weight: 600;
+  color: var(--sdb-muted);
+}
+
+.tdb-table-cell-bold {
+  font-weight: 700;
+  color: var(--sdb-text);
+}
+
+.tdb-table-cell-sub {
+  font-size: 0.72rem;
+  color: var(--sdb-subtle);
+  display: block;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .tdb-layout { grid-template-columns: 1fr; }
+  .tdb-sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--sdb-border); }
+  .tdb-sidebar-inner { flex-direction: row; flex-wrap: wrap; align-items: center; padding: 12px 16px; gap: 8px; }
+  .tdb-brand { margin-bottom: 0; }
+  .tdb-nav { flex-direction: row; flex-wrap: wrap; flex: none; gap: 2px; }
+  .tdb-nav-item { padding: 6px 10px; font-size: 0.78rem; }
+  .tdb-nav-label { display: none; }
+  .tdb-sidebar-footer { border-top: none; padding-top: 0; margin-top: 0; }
+  .tdb-main { padding: 20px; }
+}
