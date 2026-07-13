@@ -7,17 +7,26 @@ import {
   LogOut,
   Moon,
   Sun,
+  Activity,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { signOut } from 'firebase/auth'
+import { where, type QueryConstraint } from 'firebase/firestore'
 import toast from 'react-hot-toast'
 import { auth } from '../firebase/firebase'
 import { useAuth } from '../hooks/useAuth'
+import { useRealtimeCount } from '../hooks/useRealtimeCount'
+import '../styles/AdminDashboard.css'
 
 export function AdminLayout() {
   const { userProfile } = useAuth()
-  const [isDark, setIsDark] = useState(false)
+  const pendingConstraint = useMemo<QueryConstraint[]>(
+    () => [where('status', '==', 'pending')],
+    [],
+  )
+  const pendingCount = useRealtimeCount('schools', pendingConstraint)
+
   const currentDateTime = new Intl.DateTimeFormat('en-IN', {
     dateStyle: 'full',
     timeStyle: 'short',
@@ -35,7 +44,7 @@ export function AdminLayout() {
   }
 
   return (
-    <div className={isDark ? 'admin-shell dark-admin' : 'admin-shell'}>
+    <div className="admin-shell">
       <aside className="admin-sidebar">
         <NavLink className="admin-brand" to="/admin/dashboard">
           <span>SH</span>
@@ -46,9 +55,16 @@ export function AdminLayout() {
             <LayoutDashboard aria-hidden="true" />
             Dashboard
           </NavLink>
-          <NavLink to="/admin/approval-requests">
-            <Building2 aria-hidden="true" />
-            School Approval Requests
+          <NavLink to="/admin/approval-requests" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <Building2 aria-hidden="true" />
+              School Approval Requests
+            </span>
+            {!pendingCount.loading && pendingCount.count > 0 && (
+              <span className="sdb-test-badge green" style={{ fontSize: '0.7rem', padding: '1px 6px', borderRadius: '50px', background: '#FEE2E2', color: '#EF4444', fontWeight: 700 }}>
+                {pendingCount.count}
+              </span>
+            )}
           </NavLink>
           <NavLink to="/admin/approved-schools">
             <CheckCircle2 aria-hidden="true" />
@@ -58,7 +74,8 @@ export function AdminLayout() {
             <BarChart3 aria-hidden="true" />
             Website Analytics
           </NavLink>
-          <button type="button" onClick={handleLogout}>
+          
+          <button type="button" onClick={handleLogout} style={{ marginTop: 'auto' }}>
             <LogOut aria-hidden="true" />
             Logout
           </button>
@@ -66,31 +83,6 @@ export function AdminLayout() {
       </aside>
 
       <div className="admin-main">
-        <header className="topbar">
-          <div className="topbar-profile">
-            <p>{currentDateTime}</p>
-            <strong>{userProfile?.fullName || userProfile?.email}</strong>
-            <span>Role: {roleLabel}</span>
-            <span>{userProfile?.email}</span>
-          </div>
-          <div className="topbar-actions">
-            <button aria-label="Notifications" type="button">
-              <Bell aria-hidden="true" />
-            </button>
-            <button
-              aria-label="Toggle theme"
-              type="button"
-              onClick={() => setIsDark((current) => !current)}
-            >
-              {isDark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
-            </button>
-            <div className="avatar" aria-label="Admin avatar">
-              {(userProfile?.fullName || userProfile?.email || 'A')
-                .charAt(0)
-                .toUpperCase()}
-            </div>
-          </div>
-        </header>
         <Outlet />
       </div>
     </div>
