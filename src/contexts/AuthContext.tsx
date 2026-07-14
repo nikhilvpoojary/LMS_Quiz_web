@@ -119,7 +119,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       accessDenied,
-      isAdmin: Boolean(user && userProfile?.role === 'websiteAdmin'),
       loading,
       role: userProfile?.role ?? null,
       user,

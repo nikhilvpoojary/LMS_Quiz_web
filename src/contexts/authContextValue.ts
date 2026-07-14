@@ -15,7 +15,6 @@ export interface UserProfile {
 
 export interface AuthContextValue {
   accessDenied: boolean
-  isAdmin: boolean
   loading: boolean
   role: UserRole | null
   user: User | null
