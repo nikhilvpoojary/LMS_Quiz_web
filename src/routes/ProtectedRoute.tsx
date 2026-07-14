@@ -15,7 +15,7 @@ export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
       <main className="screen-center">
         <div className="loader-card">
           <span className="spinner" />
-          <p>{role === 'admin' ? 'Checking admin access...' : 'Loading dashboard...'}</p>
+          <p>{role === 'websiteAdmin' ? 'Checking admin access...' : 'Loading dashboard...'}</p>
         </div>
       </main>
     )

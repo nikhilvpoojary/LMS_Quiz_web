@@ -23,11 +23,9 @@ import {
   Pencil,
   Plus,
   PlayCircle,
-  Search,
   School,
   Target,
   ToggleLeft,
-  Trash2,
   User,
   UserCheck,
   UserRoundCheck,
@@ -41,8 +39,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import toast from 'react-hot-toast'
-import { StatCard } from '../components/admin/StatCard'
-import { EmptyState, ErrorState, SkeletonGrid } from '../components/common/StateViews'
+import { ErrorState, SkeletonGrid } from '../components/common/StateViews'
 import type { UserRole } from '../contexts/authContextValue'
 import '../styles/StudentDashboard.css'
 import '../styles/TeacherDashboard.css'
@@ -1561,7 +1558,7 @@ function StudentDashboard() {
                   <div className="sdb-tests-list">
                     {courses.slice(0, 3).flatMap(c =>
                       (c.tests ?? []).slice(0, 2).map(t => ({ course: c, test: t }))
-                    ).slice(0, 4).map(({ course, test }, i) => {
+                    ).slice(0, 4).map(({ course, test }) => {
                       const attempted = attempts.records.some(a => a.courseId === course.id && a.testId === test.id)
                       return (
                         <div key={`${course.id}-${test.id}`} className="sdb-test-item">

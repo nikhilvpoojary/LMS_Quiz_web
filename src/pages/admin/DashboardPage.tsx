@@ -1,5 +1,4 @@
-import { Building2, GraduationCap, School, UserRoundCheck, Clock, User, Shield, Mail, CheckCircle2, AlertCircle } from 'lucide-react'
-import { StatCard } from '../../components/admin/StatCard'
+import { Building2, GraduationCap, School, UserRoundCheck, Clock, Shield, Mail, CheckCircle2, AlertCircle } from 'lucide-react'
 import { ErrorState } from '../../components/common/StateViews'
 import { useDashboardStats } from '../../hooks/useDashboardStats'
 import { useAuth } from '../../hooks/useAuth'

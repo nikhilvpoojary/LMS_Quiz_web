@@ -1,42 +1,25 @@
 import {
   BarChart3,
-  Bell,
   Building2,
   CheckCircle2,
   LayoutDashboard,
   LogOut,
-  Moon,
-  Sun,
-  Activity,
 } from 'lucide-react'
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { signOut } from 'firebase/auth'
 import { where, type QueryConstraint } from 'firebase/firestore'
 import toast from 'react-hot-toast'
 import { auth } from '../firebase/firebase'
-import { useAuth } from '../hooks/useAuth'
 import { useRealtimeCount } from '../hooks/useRealtimeCount'
 import '../styles/AdminDashboard.css'
 
 export function AdminLayout() {
-  const { userProfile } = useAuth()
   const pendingConstraint = useMemo<QueryConstraint[]>(
     () => [where('status', '==', 'pending')],
     [],
   )
   const pendingCount = useRealtimeCount('schools', pendingConstraint)
-
-  const currentDateTime = new Intl.DateTimeFormat('en-IN', {
-    dateStyle: 'full',
-    timeStyle: 'short',
-  }).format(new Date())
-  const roleLabel =
-    userProfile?.role === 'websiteAdmin'
-      ? 'Website Administrator'
-      : (userProfile?.role ?? '').replace(/^\w/, (letter) =>
-          letter.toUpperCase(),
-        )
 
   const handleLogout = async () => {
     await signOut(auth)
@@ -74,7 +57,7 @@ export function AdminLayout() {
             <BarChart3 aria-hidden="true" />
             Website Analytics
           </NavLink>
-          
+
           <button type="button" onClick={handleLogout} style={{ marginTop: 'auto' }}>
             <LogOut aria-hidden="true" />
             Logout
