@@ -1,7 +1,6 @@
 import { initializeApp, type FirebaseOptions } from 'firebase/app'
 import { browserSessionPersistence, initializeAuth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
-import { getStorage } from 'firebase/storage'
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -19,4 +18,3 @@ export const auth = initializeAuth(app, {
   persistence: browserSessionPersistence,
 })
 export const db = getFirestore(app)
-export const storage = getStorage(app)
